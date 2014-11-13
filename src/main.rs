@@ -4,6 +4,10 @@
 #![allow(non_upper_case_globals)]
 #![feature(if_let)]
 #![feature(globs)]
+#![feature(phase)]
+
+#[phase(plugin)]
+extern crate lazy_static;
 
 use std::str;
 use std::char;

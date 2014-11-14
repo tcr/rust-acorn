@@ -922,7 +922,7 @@ node.range = vec![self.tokStart, 0];
 }
     return node;
 }
-fn startNodeFrom(&mut self, other:Box<Node>) -> Box<Node> {
+fn startNodeFrom(&mut self, other:&Box<Node>) -> Box<Node> {
     let mut node:Box<Node> = (*nullptr).clone(); 
     node.start = other.start;
     
@@ -1000,11 +1000,11 @@ node.bodylist = vec![];
 }
     while self.tokType.unwrap() !=_eof{
 {
-        let mut stmt:&mut Box<Node> = &mut self.parseStatement(); 
-        if (first && isUseStrict(stmt)) {
+        let mut stmt:Box<Node> = self.parseStatement(); 
+        if (first && isUseStrict(&mut stmt)) {
 self.setStrict(true);
 }
-        node.bodylist.push(*stmt);
+        node.bodylist.push(stmt);
         first = false;
     }
 }
@@ -1014,10 +1014,12 @@ self.setStrict(true);
 
 fn parseStatement(&mut self) -> Box<Node> {
      jsparse_callback_open("parseStatement"); 
-    if (self.tokType.unwrap()==_slash || self.tokType.unwrap()==_assign && self.tokVal.unwrap().to_string().as_slice() == "/=") {
+     let tok = self.tokType.clone().unwrap();
+     let val = self.tokVal.clone().unwrap();
+    if (tok==_slash || tok==_assign && val.to_string().as_slice() == "/=") {
 self.readToken(true);
 }
-    let mut starttype:keyword_t = self.tokType.unwrap();  let node:&mut Box<Node> = &mut self.startNode(); 
+    let mut starttype:keyword_t = tok;  let node:&mut Box<Node> = &mut self.startNode(); 
     match starttype{
 _break |
 _continue => {return self.parseBreakContinueStatement(node, starttype.keyword);},
@@ -1040,16 +1042,17 @@ _braceL => {return self.parseBlock(false);},
 _semi => {return self.parseEmptyStatement(node);},
 _export => {return self.parseExport(node);},
 _import => {return self.parseImport(node);},
-_ => {let mut maybeName = self.tokVal;  let mut expr:&mut Box<Node> = &mut self.parseExpression(false, false); ;
+_ => {let mut maybeName = val;
+	let mut expr:Box<Node> = self.parseExpression(false, false); ;
 if (starttype==_name && expr._type.as_slice()=="Identifier" && self.eat(_colon)) {
-return self.parseLabeledStatement(node, maybeName.unwrap().to_string().as_slice(), expr);
-} else {return self.parseExpressionStatement(node, *expr);}}}
+return self.parseLabeledStatement(node, maybeName.to_string().as_slice(), &mut expr);
+} else {return self.parseExpressionStatement(node, expr);}}}
 }
 fn parseBreakContinueStatement<'a>(&'a mut self, node:&'a mut Box<Node>, keyword:&str) -> Box<Node> {
     let mut isBreak:bool = keyword == "break"; 
     self.next();
     if (self.eat(_semi) || self.canInsertSemicolon()) {
-node.label = Some((*nullptr));
+node.label = None;
 } else {if (self.tokType.unwrap()!=_name) {
 self.expected(None);
 } else {{
@@ -1058,8 +1061,8 @@ self.expected(None);
     }}}
     let mut i:uint = 0; ;
 while i < self.labels.len(){{
-        let mut lab:label_t = self.labels[i]; 
-        if node.label.is_none() || lab.name==node.label.unwrap().name {
+        let lab:&mut label_t = &mut self.labels[i];
+        if node.label.is_none() || lab.name==node.label.clone().unwrap().name {
 {
             if (lab.kind.as_slice() != null && (isBreak || lab.kind.as_slice()=="loop")) {
 break;
@@ -1075,31 +1078,31 @@ break;
 raise(node.start, ("Unsyntactic ".to_string() + keyword).as_slice());
 }
     self.enterNode(node, if isBreak { "BreakStatement" } else { "ContinueStatement" });
-    return self.finishNode(*node);
+    return self.finishNode(node.clone());
 }
 fn parseDebuggerStatement<'a>(&'a mut self, node:&'a mut Box<Node>) -> Box<Node> {
     self.next();
     self.semicolon();
     self.enterNode(node, "DebuggerStatement");
-    return self.finishNode(*node);
+    return self.finishNode(node.clone());
 }
 fn parseDoStatement<'a>(&'a mut self, node:&'a mut Box<Node>) -> Box<Node> {
 self.    next();
-    self.labels.push((*loopLabel));
+    self.labels.push((*loopLabel).clone());
     node.body = Some(self.parseStatement());
     self.labels.pop();
     self.expect(_while);
     node.test = Some(self.parseParenExpression());
     self.semicolon();
     self.enterNode(node, "DoWhileStatement");
-    return self.finishNode(*node);
+    return self.finishNode(node.clone());
 }
 fn parseForStatement<'a>(&'a mut self, node:&'a mut Box<Node>) -> Box<Node> {
     self.next();
-    self.labels.push((*loopLabel));
+    self.labels.push((*loopLabel).clone());
     self.expect(_parenL);
     if (self.tokType.unwrap()==_semi) {
-return self.parseFor(node, (*nullptr));
+return self.parseFor(node, (*nullptr).clone());
 }
     if (self.tokType.unwrap()==_var || self.tokType.unwrap()==_let) {
 {
@@ -1108,14 +1111,14 @@ return self.parseFor(node, (*nullptr));
         self.parseVar(&mut init, true, varKind);
         self.enterNode(&mut init, "VariableDeclaration");
         init = self.finishNode(init);
-        if ((self.tokType.unwrap()==_in || (self.tokType.unwrap()==_name && self.tokVal.unwrap().to_string().as_slice()=="of")) && init.declarations.len()==1 && !(isLet && init.declarations[0].init.is_some())) {
+        if ((self.tokType.unwrap()==_in || (self.tokType.unwrap()==_name && self.tokVal.clone().unwrap().to_string().as_slice()=="of")) && init.declarations.len()==1 && !(isLet && init.declarations[0].init.is_some())) {
 return self.parseForIn(node, init);
 }
         return self.parseFor(node, init);
     }
 }
     let mut init:Box<Node> = self.parseExpression(false, true); 
-    if (self.tokType.unwrap()==_in || (self.tokType.unwrap()==_name && self.tokVal.unwrap().to_string().as_slice()=="of")) {
+    if (self.tokType.unwrap()==_in || (self.tokType.unwrap()==_name && self.tokVal.clone().unwrap().to_string().as_slice()=="of")) {
 {
         {
         }
@@ -1147,7 +1150,7 @@ fn parseIfStatement<'a>(&'a mut self, node:&'a mut Box<Node>) -> Box<Node> {
         node.alternate = None;
     }}
      jsparse_callback_open("if-end"); 
-    return self.finishNode(*node);
+    return self.finishNode(node.clone());
 }
 fn parseReturnStatement<'a>(&'a mut self, node:&'a mut Box<Node>) -> Box<Node> {
      jsparse_callback_open("parseReturnStatement"); 
@@ -1169,59 +1172,59 @@ node.argument = None;
          jsparse_callback_open("return-argument"); 
     }}
     self.enterNode(node, "ReturnStatement");
-    return self.finishNode(*node);
+    return self.finishNode(node.clone());
 }
 fn parseSwitchStatement<'a>(&'a mut self, node:&'a mut Box<Node>) -> Box<Node> {
     self.next();
     node.discriminant = Some(self.parseParenExpression());
     node.cases = vec![];
     self.expect(_braceL);
-    self.labels.push((*switchLabel));
+    self.labels.push((*switchLabel).clone());
     let mut cur:Option<Box<Node>> = None;  let mut sawDefault:bool = false;
-while self.tokType.unwrap() != _braceR{{
+	while self.tokType.unwrap() != _braceR {
         if (self.tokType.unwrap()==_case || self.tokType.unwrap()==_default) {
-{
             let mut isCase:bool = self.tokType.unwrap()==_case; 
             if (cur.is_some()) {
-{
-                self.enterNode(&mut cur.unwrap(), "SwitchCase");
-                self.finishNode(cur.unwrap());
+            	let mut node2 = cur.unwrap();
+                self.enterNode(&mut node2, "SwitchCase");
+                node.cases.push(self.finishNode(node2));
             }
-}
-	cur = Some(self.startNode());
-            node.cases.push(cur.unwrap());
-            cur.unwrap().consequents = vec![];
+            let mut node:Box<Node> = self.startNode();
+            node.consequents = vec![];
             self.next();
             if (isCase) {
-cur.unwrap().test = Some(self.parseExpression(false, false));
-} else {{
+				node.test = Some(self.parseExpression(false, false));
+			} else {
                 if (sawDefault) {
-raise(self.lastStart, "Multiple default clauses");
-}
+					raise(self.lastStart, "Multiple default clauses");
+				}
                 sawDefault = true;
-                cur.unwrap().test = None;
-            }}
+                node.test = None;
+            }
             self.expect(_colon);
+			cur = Some(node);
+		} else {
+			match cur {
+				Some(node) => {
+					let mut node2 = node.clone();
+					node2.consequents.push(self.parseStatement());
+					cur = Some(node2);
+				},
+				None => { self.expected(None); }
+			}
         }
-} else {{
-            if (cur.is_none()) {
-self.expected(None);
-}
-            cur.unwrap().consequents.push(self.parseStatement());
-        }}
-    };
-}
-    if (cur.is_some()) {
-{
-        self.enterNode(&mut cur.unwrap(), "SwitchCase");
-        self.finishNode(cur.unwrap());
     }
-}
+    if (cur.is_some()) {
+    	let mut node2 = cur.unwrap();
+        self.enterNode(&mut node2, "SwitchCase");
+        node.cases.push(self.finishNode(node2));
+    }
     self.next();
     self.labels.pop();
     self.enterNode(node, "SwitchStatement");
-    return self.finishNode(*node);
+    return self.finishNode(node.clone());
 }
+
 fn parseThrowStatement<'a>(&'a mut self, node:&'a mut Box<Node>) -> Box<Node> {
     self.next();
     if (test(newline, slice(get_input(), self.lastEnd, self.tokStart))) {
@@ -1230,7 +1233,7 @@ raise(self.lastEnd, "Illegal newline after throw");
     node.argument = Some(self.parseExpression(false, false));
     self.semicolon();
     self.enterNode(node, "ThrowStatement");
-    return self.finishNode(*node);
+    return self.finishNode(node.clone());
 }
 fn parseTryStatement<'a>(&'a mut self, node:&'a mut Box<Node>) -> Box<Node> {
     self.next();
@@ -1242,8 +1245,9 @@ fn parseTryStatement<'a>(&'a mut self, node:&'a mut Box<Node>) -> Box<Node> {
         self.next();
         self.expect(_parenL);
         clause.param = Some(self.parseIdent(false));
-        if (self._strict && isStrictBadIdWord(clause.param.unwrap().name.as_slice())) {
-raise(clause.param.unwrap().start, ("Binding ".to_string() + clause.param.unwrap().name + " in self._strict mode").as_slice());
+        let param = clause.param.clone().unwrap();
+        if (self._strict && isStrictBadIdWord(param.name.as_slice())) {
+raise(param.start, ("Binding ".to_string() + param.name + " in self._strict mode").as_slice());
 }
         self.expect(_parenR);
         clause.guard = None;
@@ -1252,32 +1256,32 @@ raise(clause.param.unwrap().start, ("Binding ".to_string() + clause.param.unwrap
         node.handler = Some(self.finishNode(clause));
     }
 }
-    node.guardedHandlers = (*empty);
+    node.guardedHandlers = (*empty).clone();
     node.finalizer = if self.eat(_finally) { Some(self.parseBlock(false)) } else { None };
     if (node.handler.is_none() && node.finalizer.is_none()) {
 raise(node.start, "Missing catch or finally clause");
 }
     self.enterNode(node, "TryStatement");
-    return self.finishNode(*node);
+    return self.finishNode(node.clone());
 }
 fn parseVarStatement<'a>(&'a mut self, node:&'a mut Box<Node>, kind:&str) -> Box<Node> {
     self.next();
     self.parseVar(node, false, kind);
     self.semicolon();
     self.enterNode(node, "VariableDeclaration");
-    return self.finishNode(*node);
+    return self.finishNode(node.clone());
 }
 fn parseWhileStatement<'a>(&'a mut self, node:&'a mut Box<Node>) -> Box<Node> {
     self.next();
      jsparse_callback_open("while-test"); 
     node.test = Some(self.parseParenExpression());
-    self.labels.push((*loopLabel));
+    self.labels.push((*loopLabel).clone());
      jsparse_callback_open("while-body"); 
     node.body = Some(self.parseStatement());
     self.labels.pop();
     self.enterNode(node, "WhileStatement");
      jsparse_callback_open("while-end"); 
-    return self.finishNode(*node);
+    return self.finishNode(node.clone());
 }
 fn parseWithStatement<'a>(&'a mut self, node:&'a mut Box<Node>) -> Box<Node> {
     if (self._strict) {
@@ -1287,12 +1291,12 @@ raise(self.tokStart, "'with' in self._strict mode");
     node.object = Some(self.parseParenExpression());
     node.body = Some(self.parseStatement());
     self.enterNode(node, "WithStatement");
-    return self.finishNode(*node);
+    return self.finishNode(node.clone());
 }
 fn parseEmptyStatement<'a>(&'a mut self, node:&'a mut Box<Node>) -> Box<Node> {
     self.next();
     self.enterNode(node, "EmptyStatement");
-    return self.finishNode(*node);
+    return self.finishNode(node.clone());
 }
 fn parseLabeledStatement<'a>(&'a mut self, node:&'a mut Box<Node>, maybeName:&str, expr:&mut Box<Node>) -> Box<Node> {
     let mut i:uint = 0; ;
@@ -1305,21 +1309,21 @@ i = i + 1;
     self.labels.push(label_t {kind: kind.to_string(), name: maybeName.to_string()});
     node.body = Some(self.parseStatement());
     self.labels.pop();
-    node.label = Some(*expr);
+    node.label = Some(expr.clone());
     self.enterNode(node, "LabeledStatement");
-    return self.finishNode(*node);
+    return self.finishNode(node.clone());
 }
 fn parseExpressionStatement<'a>(&'a mut self, node:&'a mut Box<Node>, expr:Box<Node>) -> Box<Node> {
     node.expression = Some(expr);
     self.semicolon();
     self.enterNode(node, "ExpressionStatement");
-    return self.finishNode(*node);
+    return self.finishNode(node.clone());
 }
 fn parseParenExpression(&mut self) -> Box<Node> {
     self.expect(_parenL);
-    let mut val:&mut Box<Node> = &mut self.parseExpression(false, false); 
+    let val:Box<Node> = self.parseExpression(false, false); 
     self.expect(_parenR);
-    return *val;
+    return val;
 }
 fn parseBlock(&mut self, allowStrict:bool) -> Box<Node> {
     let node:&mut Box<Node> = &mut self.startNode();
@@ -1331,14 +1335,12 @@ fn parseBlock(&mut self, allowStrict:bool) -> Box<Node> {
     while !self.eat(_braceR){
 {
         let mut stmt:Box<Node> = self.parseStatement(); 
-        node.bodylist.push(stmt);
         if (first && allowStrict && isUseStrict(&mut stmt)) {
-{
             oldStrict = isstrict;
             isstrict = true;
             self.setStrict(isstrict);
         }
-}
+        node.bodylist.push(stmt);
         first = false;
     }
 }
@@ -1346,7 +1348,7 @@ fn parseBlock(&mut self, allowStrict:bool) -> Box<Node> {
 self.setStrict(false);
 }
     self.enterNode(node, "BlockStatement");
-    return self.finishNode(*node);
+    return self.finishNode(node.clone());
 }
 fn parseFor<'a>(&'a mut self, node:&'a mut Box<Node>, init:Box<Node>) -> Box<Node> {
     node.init = Some(init);
@@ -1362,7 +1364,7 @@ fn parseFor<'a>(&'a mut self, node:&'a mut Box<Node>, init:Box<Node>) -> Box<Nod
     self.labels.pop();
      jsparse_callback_open("for-end"); 
     self.enterNode(node, "ForStatement");
-    return self.finishNode(*node);
+    return self.finishNode(node.clone());
 }
 fn parseForIn<'a>(&'a mut self, node:&'a mut Box<Node>, init:Box<Node>) -> Box<Node> {
     let mut _type :&str = if self.tokType.unwrap()==_in { "ForInStatement" } else { "ForOfStatement" }; 
@@ -1373,7 +1375,7 @@ fn parseForIn<'a>(&'a mut self, node:&'a mut Box<Node>, init:Box<Node>) -> Box<N
     node.body = Some(self.parseStatement());
     self.labels.pop();
     self.enterNode(node, _type);
-    return self.finishNode(*node);
+    return self.finishNode(node.clone());
 }
 fn parseVar<'a>(&mut self, node:&'a mut Box<Node>, noIn:bool, kind:&str) -> &'a mut Box<Node> {
     node.declarations = vec![];
@@ -1409,57 +1411,57 @@ break;
 }
 fn parseExpression(&mut self, noComma:bool, noIn:bool) -> Box<Node> {
      jsparse_callback_open("parseExpression"); 
-    let mut expr:&mut Box<Node> = &mut self.parseMaybeAssign(noIn); 
+    let mut expr:Box<Node> = self.parseMaybeAssign(noIn); 
     if (!noComma && self.tokType.unwrap()==_comma) {
-{
-        let node:&mut Box<Node> = &mut self.startNodeFrom(*expr);
-        node.expressions = vec![*expr];
+        let node:&mut Box<Node> = &mut self.startNodeFrom(&expr);
+        node.expressions = vec![expr];
         while self.eat(_comma){
-node.expressions.push(self.parseMaybeAssign(noIn));
-}
+			node.expressions.push(self.parseMaybeAssign(noIn));
+		}
         self.enterNode(node, "SequenceExpression");
-        return self.finishNode(*node);
+        return self.finishNode(node.clone());
     }
-}
-    return *expr;
+    return expr;
 }
 fn parseMaybeAssign(&mut self, noIn:bool) -> Box<Node> {
-    let mut left:&mut Box<Node> = &mut self.parseMaybeConditional(noIn); 
+    let mut left:Box<Node> = self.parseMaybeConditional(noIn); 
     if (self.tokType.unwrap().isAssign) {
 {
-         jsparse_callback_open(self.tokVal.unwrap().to_string().as_slice()); 
-        let node:&mut Box<Node> = &mut self.startNodeFrom(*left); 
-        node._operator = self.tokVal.unwrap().to_string();
-        node.left = Some(if self.tokType.unwrap()==_eq { toAssignable(*left, false, false) } else { *left });
+	let tokVal = self.tokVal.clone().unwrap();
+         jsparse_callback_open(tokVal.to_string().as_slice()); 
+        let node:&mut Box<Node> = &mut self.startNodeFrom(&left); 
+        node._operator = tokVal.to_string();
+        node.left = Some(if self.tokType.unwrap()==_eq { toAssignable(left, false, false) } else { left });
         {
         }
         self.next();
         node.right = Some(self.parseMaybeAssign(noIn));
         self.enterNode(node, "AssignmentExpression");
-        return self.finishNode(*node);
+        return self.finishNode(node.clone());
     }
 }
-    return *left;
+    return left;
 }
 fn parseMaybeConditional(&mut self, noIn:bool) -> Box<Node> {
-    let mut expr:&mut Box<Node> = &mut self.parseExprOps(noIn); 
+    let mut expr:Box<Node> = self.parseExprOps(noIn); 
     if (self.eat(_question)) {
 {
-        let node:&mut Box<Node> = &mut self.startNodeFrom(*expr); 
-        node.test = Some(*expr);
+        let node:&mut Box<Node> = &mut self.startNodeFrom(&expr); 
+        node.test = Some(expr);
          jsparse_callback_open("ternary-consequent"); 
         node.consequent = Some(self.parseExpression(true, false));
         self.expect(_colon);
          jsparse_callback_open("ternary-alternate"); 
         node.alternate = Some(self.parseExpression(true, noIn));
         self.enterNode(node, "ConditionalExpression");
-        return self.finishNode(*node);
+        return self.finishNode(node.clone());
     }
 }
-    return *expr;
+    return expr;
 }
 fn parseExprOps(&mut self, noIn:bool) -> Box<Node> {
-    return self.parseExprOp(self.parseMaybeUnary(), -1, noIn);
+	let left = self.parseMaybeUnary();
+    return self.parseExprOp(left, -1, noIn);
 }
 fn parseExprOp(&mut self, left:Box<Node>, minPrec:int, noIn:bool) -> Box<Node> {
     let mut prec:int = self.tokType.unwrap().binop; 
@@ -1467,18 +1469,20 @@ fn parseExprOp(&mut self, left:Box<Node>, minPrec:int, noIn:bool) -> Box<Node> {
 {
         if (prec > minPrec) {
 {
-            let node:&mut Box<Node> = &mut self.startNodeFrom(left); 
+            let node:&mut Box<Node> = &mut self.startNodeFrom(&left); 
             node.left = Some(left);
-            node._operator = match self.tokVal.unwrap() {
-            	JS_STRING(s) => s,
+            let val = self.tokVal.clone().unwrap();
+            node._operator = match val {
+            	JS_STRING(ref s) => s.clone(),
             	_ => "".to_string()
             };
-             jsparse_callback_open(self.tokVal.unwrap().to_string().as_slice());
+             jsparse_callback_open(val.to_string().as_slice());
             let mut op:keyword_t = self.tokType.unwrap();
             self.next();
-            node.right = Some(self.parseExprOp(self.parseMaybeUnary(), prec, noIn));
+            let left = self.parseMaybeUnary();
+            node.right = Some(self.parseExprOp(left, prec, noIn));
             self.enterNode(node, if op==_logicalOR || op==_logicalAND { "LogicalExpression" } else { "BinaryExpression" });
-            let mut exprNode:Box<Node> = self.finishNode(*node); 
+            let mut exprNode:Box<Node> = self.finishNode(node.clone()); 
             return self.parseExprOp(exprNode, minPrec, noIn);
         }
 }
@@ -1487,84 +1491,91 @@ fn parseExprOp(&mut self, left:Box<Node>, minPrec:int, noIn:bool) -> Box<Node> {
     return left;
 }
 fn parseMaybeUnary(&mut self) -> Box<Node> {
-     if (self.tokType.unwrap().keyword == "function") { jsparse_callback_open(self.tokVal.unwrap().to_string().as_slice()); } 
+	let tokVal = self.tokVal.clone().unwrap();
+     if (self.tokType.unwrap().keyword == "function") { jsparse_callback_open(tokVal.to_string().as_slice()); } 
     if (self.tokType.unwrap().prefix) {
 {
-         jsparse_callback_open(("unary-".to_string() + self.tokVal.unwrap().to_string()).as_slice()); 
+         jsparse_callback_open(("unary-".to_string() + tokVal.to_string()).as_slice()); 
         let node:&mut Box<Node> = &mut self.startNode();  let mut update:bool = self.tokType.unwrap().isUpdate; 
-        node._operator = self.tokVal.unwrap().to_string();
+        node._operator = tokVal.to_string();
         node.prefix = true;
         self.tokRegexpAllowed = true;
         self.next();
         self.enterNode(node, if update { "UpdateExpression" } else { "UnaryExpression" });
         node.argument = Some(self.parseMaybeUnary());
         if (update) {
-checkLVal(node.argument.unwrap());
-} else {if (self._strict && node._operator.as_slice()=="delete" && node.argument.unwrap()._type.as_slice()=="Identifier") {
+checkLVal(&node.argument.clone().unwrap());
+} else {if (self._strict && node._operator.as_slice()=="delete" && node.argument.clone().unwrap()._type.as_slice()=="Identifier") {
 raise(node.start, "Deleting local variable in self._strict mode");
 }}
-        return self.finishNode(*node);
+        return self.finishNode(node.clone());
     }
 }
-    let mut expr:&mut Box<Node> = &mut self.parseExprSubscripts(); 
+    let mut expr:Box<Node> = self.parseExprSubscripts(); 
     while self.tokType.unwrap().postfix && !self.canInsertSemicolon(){
 {
-         jsparse_callback_open(self.tokVal.unwrap().to_string().as_slice()); 
-        let node:&mut Box<Node> = &mut self.startNodeFrom(*expr); 
-        node._operator = self.tokVal.unwrap().to_string();
+		let tokval = self.tokVal.clone().unwrap();
+         jsparse_callback_open(tokval.to_string().as_slice()); 
+        let node:&mut Box<Node> = &mut self.startNodeFrom(&expr); 
+        node._operator = tokval.to_string();
         node.prefix = false;
-        node.argument = Some(*expr);
+        node.argument = Some(expr);
         {
         }
         self.next();
         self.enterNode(node, "UpdateExpression");
-        expr = &mut self.finishNode(*node);
+        expr = self.finishNode(node.clone());
     }
 }
-    return *expr;
+    return expr;
 }
 fn parseExprSubscripts(&mut self) -> Box<Node> {
-    return self.parseSubscripts(self.parseExprAtom(), false);
+	let left = self.parseExprAtom();
+    return self.parseSubscripts(left, false);
 }
 fn parseSubscripts(&mut self, base:Box<Node>, noCalls:bool) -> Box<Node> {
      jsparse_callback_open("subscripts"); 
     if (self.eat(_dot)) {
 {
-        let node:&mut Box<Node> = &mut self.startNodeFrom(base); 
+        let node:&mut Box<Node> = &mut self.startNodeFrom(&base); 
         self.enterNode(node, "MemberExpression");
         node.object = Some(base);
         node.property = Some(self.parseIdent(true));
         node.computed = false;
-        return self.parseSubscripts(self.finishNode(*node), noCalls);
+        let left = self.finishNode(node.clone());
+        return self.parseSubscripts(left, noCalls);
     }
 } else {if (self.eat(_bracketL)) {
 {
          jsparse_callback_open("member-var-open"); 
-        let node:&mut Box<Node> = &mut self.startNodeFrom(base); 
+        let node:&mut Box<Node> = &mut self.startNodeFrom(&base); 
         node.object = Some(base);
         node.property = Some(self.parseExpression(false, false));
         node.computed = true;
         self.expect(_bracketR);
          jsparse_callback_open("member-var-close"); 
         self.enterNode(node, "MemberExpression");
-        return self.parseSubscripts(self.finishNode(*node), noCalls);
+        let left = self.finishNode(node.clone());
+        return self.parseSubscripts(left, noCalls);
     }
 } else {if (!noCalls && self.eat(_parenL)) {
 {
          jsparse_callback_open("call-open"); 
-        let node:&mut Box<Node> = &mut self.startNodeFrom(base); 
+        let node:&mut Box<Node> = &mut self.startNodeFrom(&base); 
         self.enterNode(node, "CallExpression");
         node.callee = Some(base);
         node.arguments = self.parseExprList(_parenR, false, false);
-        return self.parseSubscripts(self.finishNode(*node), noCalls);
+        let left = self.finishNode(node.clone());
+        return self.parseSubscripts(left, noCalls);
     }
 } else {if (self.tokType.unwrap()==_bquote) {
 {
-        let node:&mut Box<Node> = &mut self.startNodeFrom(base); 
+        let node:&mut Box<Node> = &mut self.startNodeFrom(&base); 
         node.tag = Some(base);
         node.quasi = Some(parseTemplate());
         self.enterNode(node, "TaggedTemplateExpression");
-        return self.parseSubscripts(self.finishNode(*node), noCalls);
+        let left = self.finishNode(node.clone());
+        return self.parseSubscripts(left, noCalls);
     }
 }}}}
     return base;
@@ -1574,47 +1585,52 @@ fn parseExprAtom(&mut self) -> Box<Node> {
 _this => {let node:&mut Box<Node> = &mut self.startNode(); ;
 self.next();;
 self.enterNode(node, "ThisExpression");;
-return self.finishNode(*node);},
+return self.finishNode(node.clone());},
 _yield => {if (self.inGenerator) {
 return self.parseYield();
 }},
-_name => {let mut id:&mut Box<Node> = &mut self.parseIdent(self.tokType.unwrap()!=_name); ;
+_name => {
+	let isliberal = self.tokType.unwrap()!=_name;
+	let mut id:Box<Node> = self.parseIdent(isliberal); ;
 if (self.eat(_arrow)) {
 {
-                return self.parseArrowExpression(&mut self.startNodeFrom(*id), vec![*id]);
+		let node2 = &mut self.startNodeFrom(&id);
+                return self.parseArrowExpression(node2, vec![id]);
             }
 };
-return *id;},
+return id;},
 _num => {},
 _string => {},
 _regexp => {let node:&mut Box<Node> = &mut self.startNode(); ;
-node.value = self.tokVal.unwrap();;
+node.value = self.tokVal.clone().unwrap();;
 node.raw = slice(get_input(), self.tokStart, self.tokEnd).to_string();;
 self.next();;
 self.enterNode(node, "Literal");;
-return self.finishNode(*node);},
+return self.finishNode(node.clone());},
 _null => {},
 _true => {},
 _false => {let node:&mut Box<Node> = &mut self.startNode(); ;
 node.raw = self.tokType.unwrap().keyword.to_string();;
 self.next();;
 self.enterNode(node, "Literal");;
-return self.finishNode(*node);},
+return self.finishNode(node.clone());},
 _parenL => {let mut tokStartLoc1:int = self.tokStartLoc; 
 	let mut tokStart1:int = self.tokStart; 
-	let mut val:&mut Box<Node> = &mut (*nullptr);  let mut exprList:Vec<Box<Node>> = Vec::new(); ;
+	let mut val:Box<Node> = (*nullptr).clone();
+	let mut exprList:Vec<Box<Node>> = Vec::new(); ;
 self.next();;
 if (self.options.ecmaVersion >= 6 && self.tokType.unwrap()==_for) {
 {
-                val = &mut self.parseComprehension(&mut self.startNode(), true);
+	let node2 = &mut self.startNode();
+                val = self.parseComprehension(node2, true);
             }
 } else {{
 		self.metParenL+= 1;
                 let mut oldParenL:int = self.metParenL; 
                 if (self.tokType.unwrap()!=_parenR) {
 {
-                    val = &mut self.parseExpression(false, false);
-                    exprList = if val._type.as_slice()=="SequenceExpression" { val.expressions } else { vec![*val] };
+                    val = self.parseExpression(false, false);
+                    exprList = if val._type.as_slice()=="SequenceExpression" { val.expressions.clone() } else { vec![val.clone()] };
                 }
 } else {{
                     exprList = vec![];
@@ -1622,11 +1638,13 @@ if (self.options.ecmaVersion >= 6 && self.tokType.unwrap()==_for) {
                 self.expect(_parenR);
                 if (self.metParenL==oldParenL && self.eat(_arrow)) {
 {
-                    val = &mut self.parseArrowExpression(&mut self.startNode(), exprList);
+	let node2 = &mut self.startNode();
+                    val = self.parseArrowExpression(node2, exprList);
                 }
 } else {{
-                    if (*val == (*nullptr)) {
-self.expected(Some(self.lastStart));
+                    if (val == (*nullptr)) {
+                    	let lastStart = self.lastStart;
+self.expected(Some(lastStart));
 }
                     if (self.options.ecmaVersion >= 6) {
 {
@@ -1650,7 +1668,7 @@ if (self.options.ranges) {
                 val.range = vec![tokStart1, self.lastEnd];
             }
 };
-return *val;},
+return val;},
 _bracketL => {let node:&mut Box<Node> = &mut self.startNode(); ;
 self.next();;
 if (self.options.ecmaVersion >= 6 && self.tokType.unwrap()==_for) {
@@ -1660,12 +1678,14 @@ if (self.options.ecmaVersion >= 6 && self.tokType.unwrap()==_for) {
 };
 node.elements = self.parseExprList(_bracketR, true, true);;
 self.enterNode(node, "ArrayExpression");;
-return self.finishNode(*node);},
+return self.finishNode(node.clone());},
 _braceL => {return self.parseObj();},
 _function => {let node:&mut Box<Node> = &mut self.startNode(); ;
 self.next();;
 return self.parseFunction(node, false, false);},
-_class => {return self.parseClass(&mut self.startNode(), false);},
+_class => {
+let left = &mut self.startNode();
+	return self.parseClass(left, false);},
 _new => {return self.parseNew();},
 _ellipsis => {return self.parseSpread();},
 _bquote => {return parseTemplate();},
@@ -1676,26 +1696,29 @@ fn parseNew(&mut self) -> Box<Node> {
      jsparse_callback_open("new-open"); 
     let node:&mut Box<Node> = &mut self.startNode(); 
     self.next();
-    node.callee = Some(self.parseSubscripts(self.parseExprAtom(), true));
+    let left = self.parseExprAtom();
+    node.callee = Some(self.parseSubscripts(left, true));
      jsparse_callback_open("new-args"); 
     if (self.eat(_parenL)) {
 node.arguments = self.parseExprList(_parenR, false, false);
-} else {node.arguments = (*empty);}
+} else {node.arguments = (*empty).clone();}
      jsparse_callback_open("new-close"); 
     self.enterNode(node, "NewExpression");
-    return self.finishNode(*node);
+    return self.finishNode(node.clone());
 }
 fn parseSpread(&mut self) -> Box<Node> {
     let node:&mut Box<Node> = &mut self.startNode(); 
     self.next();
     node.argument = Some(self.parseExpression(true, false));
     self.enterNode(node, "SpreadElement");
-    return self.finishNode(*node);
+    return self.finishNode(node.clone());
 }
 
 fn parseObj(&mut self) -> Box<Node> {
      jsparse_callback_open("object-literal"); 
-    let node:&mut Box<Node> = &mut self.startNode();  let mut first:bool = true;  let mut propHash:&str = ""; 
+    let node:&mut Box<Node> = &mut self.startNode();  
+    let mut first:bool = true;  
+    let mut propHash:&str = ""; 
     node.properties = vec![];
     self.next();
     while !self.eat(_braceR){
@@ -1708,7 +1731,8 @@ break;
 }
         }
 } else {first = false;}
-        let mut prop:Box<Node> = self.startNode();  let mut kind:&str = "";  
+        let mut prop:Box<Node> = self.startNode();  
+        let mut kind:String = "".to_string();  
         let mut isGenerator:bool = false; 
         if (self.options.ecmaVersion >= 6) {
 {
@@ -1718,33 +1742,33 @@ break;
         }
 }
          jsparse_callback_open("object-literal-key"); 
-        self.parsePropertyName(prop);
+        self.parsePropertyName(&mut prop);
         if (self.eat(_colon)) {
 {
              jsparse_callback_open("object-literal-value"); 
             prop.value = JS_OBJECT(self.parseExpression(true, false));
-            kind = "init"; prop.kind = kind.to_string();
+            kind = "init".to_string(); prop.kind = kind;
         }
 } else {if (self.options.ecmaVersion >= 6 && self.tokType.unwrap()==_parenL) {
 {
-            kind = "init";
-		prop.kind = kind.to_string();
+            kind = "init".to_string();
+		prop.kind = kind;
             prop.method = true;
             prop.value = JS_OBJECT(self.parseMethod(isGenerator));
         }
-} else {if (self.options.ecmaVersion >= 5 && !prop.computed && prop.key.unwrap()._type.as_slice()=="Identifier" && (prop.key.unwrap().name.as_slice()=="get" || prop.key.unwrap().name.as_slice()=="set")) {
+} else {if (self.options.ecmaVersion >= 5 && !prop.computed && prop.key.clone().unwrap()._type.as_slice()=="Identifier" && (prop.key.clone().unwrap().name.as_slice()=="get" || prop.key.clone().unwrap().name.as_slice()=="set")) {
 {
             if (isGenerator) {
 self.expected(None);
 }
-	prop.kind = prop.key.unwrap().name;
-            kind = prop.kind.as_slice();
-            self.parsePropertyName(prop);
+	prop.kind = prop.key.clone().unwrap().name;
+            kind = prop.kind.clone();
+            self.parsePropertyName(&mut prop);
             prop.value = JS_OBJECT(self.parseMethod(false));
         }
-} else {if (self.options.ecmaVersion >= 6 && !prop.computed && prop.key.unwrap()._type.as_slice()=="Identifier") {
+} else {if (self.options.ecmaVersion >= 6 && !prop.computed && prop.key.clone().unwrap()._type.as_slice()=="Identifier") {
 {
-            kind = "init"; prop.kind = kind.to_string();
+            kind = "init".to_string(); prop.kind = kind;
             //TODO prop.value = prop.key;
             prop.shorthand = true;
         }
@@ -1757,9 +1781,9 @@ self.expected(None);
     }
 }
     self.enterNode(node, "ObjectExpression");
-    return self.finishNode(*node);
+    return self.finishNode(node.clone());
 }
-fn parsePropertyName(&mut self, prop:Box<Node>) -> int {
+fn parsePropertyName(&mut self, prop:&mut Box<Node>) -> int {
     if (self.options.ecmaVersion >= 6) {
 {
         if (self.eat(_bracketL)) {
@@ -1806,7 +1830,7 @@ fn parseFunction<'a>(&'a mut self, node:&'a mut Box<Node>, isStatement:bool, all
      jsparse_callback_open("function-body"); 
     self.parseFunctionBody(node, allowExpressionBody);
     self.enterNode(node, if isStatement { "FunctionDeclaration" } else { "FunctionExpression" });
-    return self.finishNode(*node);
+    return self.finishNode(node.clone());
 }
 fn parseMethod(&mut self, isGenerator:bool) -> Box<Node> {
     let node:&mut Box<Node> = &mut self.startNode(); 
@@ -1823,23 +1847,23 @@ fn parseMethod(&mut self, isGenerator:bool) -> Box<Node> {
     }}
     self.parseFunctionBody(node, allowExpressionBody);
     self.enterNode(node, "FunctionExpression");
-    return self.finishNode(*node);
+    return self.finishNode(node.clone());
 }
-fn parseArrowExpression<'a>(&'a mut self, node:&'a mut Box<Node>, params:Vec<Box<Node>>) -> Box<Node> {
+fn parseArrowExpression<'a>(&'a mut self, node:&'a mut Box<Node>, mut params:Vec<Box<Node>>) -> Box<Node> {
     self.initFunction(node);
-    let mut defaults:Vec<Box<Node>> = node.defaults;  let mut hasDefaults:bool = false; 
+    let mut hasDefaults:bool = false; 
     let mut i:uint = 0;  let mut lastI:uint = params.len() - 1; ;
 while i <= lastI{{
-        let mut param:Box<Node> = params[i]; 
+        let mut param:Box<Node> = params[i].clone();
         if (param._type.as_slice()=="AssignmentExpression" && param._operator.as_slice()=="=") {
 {
             hasDefaults = true;
-            params[i] = param.left.unwrap();
-            defaults.push(param.right.unwrap());
+            params[i] = param.left.clone().unwrap();
+            node.defaults.push(param.right.clone().unwrap());
         }
 } else {{
-            toAssignable(param, i==lastI, true);
-            defaults.push((*nullptr));
+            toAssignable(param.clone(), i==lastI, true);
+            node.defaults.push((*nullptr).clone());
             if (param._type.as_slice()=="SpreadElement") {
 {
                 params.pop();
@@ -1856,7 +1880,7 @@ node.defaults = vec![];
 }
     self.parseFunctionBody(node, true);
     self.enterNode(node, "ArrowFunctionExpression");
-    return self.finishNode(*node);
+    return self.finishNode(node.clone());
 }
 fn parseFunctionParams<'a>(&'a mut self, node:&'a mut Box<Node>) -> int {
     let mut defaults:Vec<Box<Node>> = vec![];  let mut hasDefaults:bool = false; 
@@ -1870,7 +1894,7 @@ loop{{
 } else {if (self.options.ecmaVersion >= 6 && self.eat(_ellipsis)) {
 {
             node.rest = Some(toAssignable(self.parseExprAtom(), false, true));
-            self.checkSpreadAssign(&mut node.rest.unwrap());
+            self.checkSpreadAssign(&mut node.rest.clone().unwrap());
             self.expect(_parenR);
             break;
         }
@@ -1905,7 +1929,8 @@ fn parseFunctionBody<'a>(&'a mut self, node:&'a mut Box<Node>, allowExpression:b
         node.body = Some(self.parseExpression(true, false));
     }
 } else {{
-        let mut oldInFunc:bool = self.inFunction;  let mut oldInGen:bool = self.inGenerator;  let mut oldLabels:Vec<label_t> = self.labels; 
+        let mut oldInFunc:bool = self.inFunction;  let mut oldInGen:bool = self.inGenerator;
+        let mut oldLabels:Vec<label_t> = self.labels.clone(); 
         self.inFunction = true;
         self.inGenerator = node.generator;
         self.labels = vec![];
@@ -1914,7 +1939,7 @@ fn parseFunctionBody<'a>(&'a mut self, node:&'a mut Box<Node>, allowExpression:b
         self.inGenerator = oldInGen;
         self.labels = oldLabels;
     }}
-    if (self._strict || !isExpression && node.body.unwrap().bodylist.len() > 0 && isUseStrict(&mut node.body.unwrap().bodylist[0])) {
+    if (self._strict || !isExpression && node.body.clone().unwrap().bodylist.len() > 0 && isUseStrict(&mut node.body.clone().unwrap().bodylist[0])) {
 {
         let mut nameHash:&str = ""; 
         if (node.id.is_some()) {
@@ -1954,7 +1979,7 @@ fn parseClass<'a>(&'a mut self, node:&'a mut Box<Node>, isStatement:bool) -> Box
     while !self.eat(_braceR){
 {
         let mut method:Box<Node> = self.startNode(); 
-        if (self.tokType.unwrap()==_name && self.tokVal.unwrap().to_string().as_slice()=="static") {
+        if (self.tokType.unwrap()==_name && self.tokVal.clone().unwrap().to_string().as_slice()=="static") {
 {
             self.next();
             method._static = true;
@@ -1963,14 +1988,14 @@ fn parseClass<'a>(&'a mut self, node:&'a mut Box<Node>, isStatement:bool) -> Box
             method._static = false;
         }}
         let mut isGenerator:bool = self.eat(_star); 
-        self.parsePropertyName(method);
-        if (self.tokType.unwrap()==_name && !method.computed && method.key.unwrap()._type.as_slice()=="Identifier" && (method.key.unwrap().name.as_slice()=="get" || method.key.unwrap().name.as_slice()=="set")) {
+        self.parsePropertyName(&mut method);
+        if (self.tokType.unwrap()==_name && !method.computed && method.key.clone().unwrap()._type.as_slice()=="Identifier" && (method.key.clone().unwrap().name.as_slice()=="get" || method.key.clone().unwrap().name.as_slice()=="set")) {
 {
             if (isGenerator) {
 self.expected(None);
 }
-            method.kind = method.key.unwrap().name.to_string();
-            self.parsePropertyName(method);
+            method.kind = method.key.clone().unwrap().name.to_string();
+            self.parsePropertyName(&mut method);
         }
 } else {{
             method.kind = "".to_string();
@@ -1986,7 +2011,7 @@ self.expected(None);
     self.enterNode(&mut classBody, "ClassBody");
     node.body = Some(self.finishNode(classBody));
     self.enterNode(node, if isStatement { "ClassDeclaration" } else { "ClassExpression" });
-    return self.finishNode(*node);
+    return self.finishNode(node.clone());
 }
 fn parseExprList(&mut self, close:keyword_t, allowTrailingComma:bool, allowEmpty:bool) -> Vec<Box<Node>> {
     let mut elts:Vec<Box<Node>> = vec![];  let mut first:bool = true; 
@@ -2002,23 +2027,25 @@ break;
         }
 } else {first = false;}
         if (allowEmpty && self.tokType.unwrap()==_comma) {
-elts.push((*nullptr));
+elts.push((*nullptr).clone());
 } else {elts.push(self.parseExpression(true, false));}
     }
 }
     return elts;
 }
-fn parseIdent(&mut self, liberal:bool) -> Box<Node> {
+fn parseIdent(&mut self, mut liberal:bool) -> Box<Node> {
     let node:&mut Box<Node> = &mut self.startNode(); 
     if (liberal && self.options.forbidReserved == "everywhere") {
 liberal = false;
 }
     if (self.tokType.unwrap()==_name) {
 {
-        if (!liberal && (self.options.forbidReserved.len() > 0 && (if self.options.ecmaVersion==3 { isReservedWord3 } else { isReservedWord5 })(self.tokVal.unwrap().to_string().as_slice()) || self._strict && isStrictReservedWord(self.tokVal.unwrap().to_string().as_slice())) && indexOf(slice(get_input(), self.tokStart, self.tokEnd), "\\", 0) == -1) {
-raise(self.tokStart, ("The keyword '".to_string() + self.tokVal.unwrap().to_string() + "' is reserved").as_slice());
+	let tokval = self.tokVal.clone().unwrap();
+        if (!liberal && (self.options.forbidReserved.len() > 0 && (if self.options.ecmaVersion==3 { isReservedWord3 } else { isReservedWord5 })(tokval.to_string().as_slice()) || self._strict && isStrictReservedWord(tokval.to_string().as_slice())) && indexOf(slice(get_input(), self.tokStart, self.tokEnd), "\\", 0) == -1) {
+        	
+raise(self.tokStart, ("The keyword '".to_string() + tokval.to_string() + "' is reserved").as_slice());
 }
-        node.name = self.tokVal.unwrap().to_string();
+        node.name = tokval.to_string();
     }
 } else {if (liberal && self.tokType.unwrap().keyword.len() > 0) {
 {
@@ -2030,7 +2057,7 @@ raise(self.tokStart, ("The keyword '".to_string() + self.tokVal.unwrap().to_stri
     self.tokRegexpAllowed = false;
     self.next();
     self.enterNode(node, "Identifier");
-    return self.finishNode(*node);
+    return self.finishNode(node.clone());
 }
 fn parseExport<'a>(&'a mut self, node:&'a mut Box<Node>) -> Box<Node> {
     self.next();
@@ -2054,7 +2081,8 @@ fn parseExport<'a>(&'a mut self, node:&'a mut Box<Node>) -> Box<Node> {
         node.declaration = None;
         node._default = false;
         node.specifiers = self.parseExportSpecifiers();
-        if (self.tokType.unwrap()==_name && self.tokVal.unwrap().to_string().as_slice()=="from") {
+        let tokval = self.tokVal.clone().unwrap();
+        if (self.tokType.unwrap()==_name && tokval.to_string().as_slice()=="from") {
 {
             self.next();
             if (self.tokType.unwrap()!=_string) {
@@ -2072,7 +2100,7 @@ self.expected(None);
         }}
     }}}
     self.enterNode(node, "ExportDeclaration");
-    return self.finishNode(*node);
+    return self.finishNode(node.clone());
 }
 fn parseExportSpecifiers(&mut self) -> Vec<Box<Node>> {
     let mut nodes:Vec<Box<Node>> = vec![];  let mut first:bool = true; 
@@ -2081,7 +2109,7 @@ fn parseExportSpecifiers(&mut self) -> Vec<Box<Node>> {
         let node:&mut Box<Node> = &mut self.startNode(); 
         self.next();
         self.enterNode(node, "ExportBatchSpecifier");
-        nodes.push(self.finishNode(*node));
+        nodes.push(self.finishNode(node.clone()));
     }
 } else {{
         self.expect(_braceL);
@@ -2097,7 +2125,8 @@ break;
 } else {first = false;}
             let node:&mut Box<Node> = &mut self.startNode(); 
             node.id = Some(self.parseIdent(false));
-            if (self.tokType.unwrap()==_name && self.tokVal.unwrap().to_string().as_slice()=="as") {
+            let tokval = self.tokVal.clone().unwrap();
+            if (self.tokType.unwrap()==_name && tokval.to_string().as_slice()=="as") {
 {
                 self.next();
             }
@@ -2105,7 +2134,7 @@ break;
                 node.name = null.to_string();
             }}
             self.enterNode(node, "ExportSpecifier");
-            nodes.push(self.finishNode(*node));
+            nodes.push(self.finishNode(node.clone()));
         }
 }
     }}
@@ -2121,7 +2150,8 @@ fn parseImport<'a>(&'a mut self, node:&'a mut Box<Node>) -> Box<Node> {
     }
 } else {{
         node.specifiers = self.parseImportSpecifiers();
-        if (self.tokType.unwrap()!=_name || self.tokVal.unwrap().to_string().as_slice()!="from") {
+        let tokval = self.tokVal.clone().unwrap();
+        if (self.tokType.unwrap()!=_name || tokval.to_string().as_slice()!="from") {
 self.expected(None);
 }
         self.next();
@@ -2134,7 +2164,7 @@ self.expected(None);
         node.kind = (if node.specifiers[0]._default { "default" } else { "named" }).to_string();
     }}
     self.enterNode(node, "ImportDeclaration");
-    return self.finishNode(*node);
+    return self.finishNode(node.clone());
 }
 fn parseImportSpecifiers(&mut self) -> Vec<Box<Node>> {
     let mut nodes:Vec<Box<Node>> = vec![];  let mut first:bool = true; 
@@ -2142,14 +2172,15 @@ fn parseImportSpecifiers(&mut self) -> Vec<Box<Node>> {
 {
         let node:&mut Box<Node> = &mut self.startNode(); 
         self.next();
-        if (self.tokType.unwrap()!=_name || self.tokVal.unwrap().to_string().as_slice()!="as") {
+        let tokval = self.tokVal.clone().unwrap();
+        if (self.tokType.unwrap()!=_name || tokval.to_string().as_slice()!="as") {
 self.expected(None);
 }
         self.next();
         {
         }
         self.enterNode(node, "ImportBatchSpecifier");
-        nodes.push(self.finishNode(*node));
+        nodes.push(self.finishNode(node.clone()));
         return nodes;
     }
 }
@@ -2162,7 +2193,7 @@ self.expected(None);
         node.name = null.to_string();
         node._default = true;
         self.enterNode(node, "ImportSpecifier");
-        nodes.push(self.finishNode(*node));
+        nodes.push(self.finishNode(node.clone()));
         if (!self.eat(_comma)) {
 return nodes;
 }
@@ -2181,7 +2212,8 @@ break;
 } else {first = false;}
         let node:&mut Box<Node> = &mut self.startNode(); 
         node.id = Some(self.parseIdent(true));
-        if (self.tokType.unwrap()==_name && self.tokVal.unwrap().to_string().as_slice()=="as") {
+        let tokval = self.tokVal.clone().unwrap();
+        if (self.tokType.unwrap()==_name && tokval.to_string().as_slice()=="as") {
 {
             self.next();
         }
@@ -2192,7 +2224,7 @@ break;
         }
         node._default = false;
         self.enterNode(node, "ImportSpecifier");
-        nodes.push(self.finishNode(*node));
+        nodes.push(self.finishNode(node.clone()));
     }
 }
     return nodes;
@@ -2210,7 +2242,7 @@ fn parseYield(&mut self) -> Box<Node> {
         node.argument = Some(self.parseExpression(true, false));
     }}
     self.enterNode(node, "YieldExpression");
-    return self.finishNode(*node);
+    return self.finishNode(node.clone());
 }
 fn parseComprehension<'a>(&'a mut self, node:&'a mut Box<Node>, isGenerator:bool) -> Box<Node> {
     node.blocks = vec![];
@@ -2222,7 +2254,8 @@ fn parseComprehension<'a>(&'a mut self, node:&'a mut Box<Node>, isGenerator:bool
         block.left = Some(toAssignable(self.parseExprAtom(), false, false));
         {
         }
-        if (self.tokType.unwrap()!=_name || self.tokVal.unwrap().to_string().as_slice()!="of") {
+        let tokval = self.tokVal.clone().unwrap();
+        if (self.tokType.unwrap()!=_name || tokval.to_string().as_slice()!="of") {
 self.expected(None);
 }
         self.next();
@@ -2238,6 +2271,6 @@ self.expected(None);
     self.expect(if isGenerator { _parenR } else { _bracketR });
     node.generator = isGenerator;
     self.enterNode(node, "ComprehensionExpression");
-    return self.finishNode(*node);
+    return self.finishNode(node.clone());
 }
 }

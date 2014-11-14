@@ -92,6 +92,7 @@ impl PartialEq for Node {
 
 pub static null:&'static str = "";
 
+#[deriving(Clone)]
 pub struct keyword_t {
 	pub _id:int,
 	pub atomValue:ATOM_VALUE,
@@ -112,12 +113,14 @@ impl PartialEq for keyword_t {
     }
 }
 
+#[deriving(Clone)]
 pub enum ATOM_VALUE {
 	ATOM_NULL,
 	ATOM_TRUE,
 	ATOM_FALSE,
 }
 
+#[deriving(Clone)]
 pub struct label_t {
     pub kind:String,
     pub name:String,
@@ -135,7 +138,7 @@ pub fn fromCharCode2 (i:u32, j:u32) -> String {
 	return String::from_chars([std::char::from_u32(i).unwrap(), std::char::from_u32(j).unwrap()]);
 }
 
-pub fn push (nodes:Vec<Box<Node>>, node:Box<Node>) {
+pub fn push (mut nodes:Vec<Box<Node>>, node:Box<Node>) {
 	nodes.push(node);
 }
 
@@ -250,7 +253,7 @@ pub enum js_any_type {
 impl js_any_type {
 	pub fn to_string(&self) -> String {
 		match (*self) {
-			JS_STRING(s) => s,
+			JS_STRING(ref s) => s.clone(),
 			_ => "".to_string()
 		}
 	}
@@ -300,7 +303,7 @@ pub fn test (regex: |arg:&str| -> bool, val:&str ) -> bool {
 	return false;
 }
 
-pub fn checkLVal(arg:Box<Node>) {
+pub fn checkLVal(arg:&Box<Node>) {
 
 }
 

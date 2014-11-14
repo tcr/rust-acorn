@@ -1,5 +1,6 @@
 use std;
 use std::f64;
+use std::fmt;
 
 pub struct options_t {
 	pub ecmaVersion:int,
@@ -15,7 +16,7 @@ pub struct options_t {
 	pub directSourceFile:&'static str,
 }
 
-#[deriving(Clone)]
+#[deriving(Clone, Show)]
 pub struct Node {
 	pub _type:String,
 	pub start:int,
@@ -107,6 +108,12 @@ pub struct keyword_t {
 	pub _type:&'static str,
 }
 
+impl fmt::Show for keyword_t {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "[keyword {}, '{}']", self._id, self._type)
+    }
+}
+
 impl PartialEq for keyword_t {
     fn eq(&self, other: &keyword_t) -> bool {
     	self._id == other._id
@@ -151,6 +158,7 @@ pub fn convert_to_Node_C (arg:&mut Box<Node>) -> &'static str {
 }
 
 pub fn jsparse_callback_close (arg:&str) {
+	println!("close: {}", arg);
 }
 
 
@@ -229,10 +237,12 @@ pub fn ISNULL(arg:&str) -> bool {
 }
 
 pub fn jsparse_callback_open (arg:&str) {
+	println!("open: {}", arg);
 }
 
 pub fn raise (start:int, message:&str){
 	// printf("ERROR: %s %d\n", message.c_str(), start);
+	panic!("At char {} message {}", start, message);
 	// exit(1);
 }
 
@@ -240,7 +250,7 @@ pub fn indexOf(arg:&str, needle:&str, start:int) -> int {
 	return -1;
 }
 
-#[deriving(Clone)]
+#[deriving(Clone, Show)]
 pub enum js_any_type {
 	JS_NULL,
 	JS_DOUBLE(f64),
@@ -300,7 +310,7 @@ pub fn parseFloat (arg:&str) -> f64 {
 }
 
 pub fn test (regex: |arg:&str| -> bool, val:&str ) -> bool {
-	return false;
+	return regex(val);
 }
 
 pub fn checkLVal(arg:&Box<Node>) {

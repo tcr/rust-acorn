@@ -20,7 +20,7 @@ const version:&'static str = "0.6.1";
 // static mut self.input:&'static str = "";
 // static mut inputLen:uint = 0;
 
-struct AcornParser {
+pub struct AcornParser {
 	options:options_t,
 	input:String,
 	sourceFile:String,
@@ -174,7 +174,7 @@ fn get_input() -> &'static str {
 }
 
 impl AcornParser {
-	fn new() -> AcornParser {
+	pub fn new() -> AcornParser {
 		return AcornParser {
 			options: options_t {ecmaVersion: 5, strictSemicolons: false, allowTrailingCommas: true, forbidReserved: "", allowReturnOutsideFunction: false, locations: false, ranges: false, program: None, sourceFile: "", directSourceFile: ""},
 			input: "".to_string(),
@@ -204,9 +204,9 @@ impl AcornParser {
 		};
 	}
 
-fn parse(&mut self, inpt:String, opts:options_t) -> Box<Node> {
+pub fn parse(&mut self, inpt:String) -> Box<Node> {
 	unsafe { set_input(inpt) };
-    setOptions(opts);
+    setOptions(defaultOptions);
     self.initTokenState();
     let mut program:Option<Box<Node>> = None;
     return self.parseTopLevel(program);
@@ -576,7 +576,7 @@ return self.readWord();
         if (ch.as_slice()=="\\" || test(nonASCIIidentifierStart, ch.as_slice())) {
 return self.readWord();
 }
-        raise(self.tokPos as int, ("Unself.expected character '".to_string() + ch + "'").as_slice());
+        raise(self.tokPos as int, ("Unexpected character '".to_string() + ch + "'").as_slice());
     }
 }
 return 0;
@@ -946,15 +946,15 @@ node.range[1] = self.lastEnd;
 }
 
 fn eat(&mut self, _type :keyword_t) -> bool {
+	println!("-> eat {} expecting {}", self.tokType.unwrap(), _type);
     if (self.tokType.unwrap() == _type) {
-{
         self.next();
         return true;
-    }
-} else {{
+	} else {
         return false;
-    }}
+    }
 }
+
 fn canInsertSemicolon(&mut self) -> bool {
     return !self.options.strictSemicolons && (self.tokType.unwrap() ==_eof || self.tokType.unwrap()==_braceR || test(newline, slice(get_input(), self.lastEnd, self.tokStart)));
 }
@@ -969,7 +969,7 @@ fn expect(&mut self, _type :keyword_t) -> int {
     return 0;
 }
 fn expected(&mut self, pos:Option<int>) -> int {
-    raise(match pos { Some(p) => p, None => self.tokStart }, "Unself.expected token");
+    raise(match pos { Some(p) => p, None => self.tokStart }, "Unexpected token");
     return 0;
 }
 
@@ -986,6 +986,7 @@ return 0;
 fn parseTopLevel(&mut self, mut program:Option<Box<Node>>) -> Box<Node> {
 	self.lastEnd = self.tokPos as int;
     self.lastStart = self.tokPos as int;
+    println!("hey");
     
     self._strict = false;
     self.inGenerator = false;
@@ -993,7 +994,7 @@ fn parseTopLevel(&mut self, mut program:Option<Box<Node>>) -> Box<Node> {
     self.labels = vec![];
     self.readToken(false);
     let hasprogram = program.is_some();
-    let mut node:Box<Node> = if program.is_some() { self.startNode() } else { program.unwrap() };
+    let mut node:Box<Node> = if program.is_none() { self.startNode() } else { program.unwrap() };
     let mut first:bool = true; 
     if !hasprogram {
 node.bodylist = vec![];
@@ -1008,7 +1009,9 @@ self.setStrict(true);
         first = false;
     }
 }
+println!("ho");
     self.enterNode(&mut node, "Program");
+    println!("done");
     return self.finishNode(node);
 }
 
@@ -1412,6 +1415,7 @@ break;
 fn parseExpression(&mut self, noComma:bool, noIn:bool) -> Box<Node> {
      jsparse_callback_open("parseExpression"); 
     let mut expr:Box<Node> = self.parseMaybeAssign(noIn); 
+
     if (!noComma && self.tokType.unwrap()==_comma) {
         let node:&mut Box<Node> = &mut self.startNodeFrom(&expr);
         node.expressions = vec![expr];
@@ -1599,16 +1603,16 @@ if (self.eat(_arrow)) {
             }
 };
 return id;},
-_num => {},
-_string => {},
+_num |
+_string |
 _regexp => {let node:&mut Box<Node> = &mut self.startNode(); ;
 node.value = self.tokVal.clone().unwrap();;
 node.raw = slice(get_input(), self.tokStart, self.tokEnd).to_string();;
 self.next();;
 self.enterNode(node, "Literal");;
 return self.finishNode(node.clone());},
-_null => {},
-_true => {},
+_null |
+_true |
 _false => {let node:&mut Box<Node> = &mut self.startNode(); ;
 node.raw = self.tokType.unwrap().keyword.to_string();;
 self.next();;
@@ -2015,24 +2019,25 @@ self.expected(None);
 }
 fn parseExprList(&mut self, close:keyword_t, allowTrailingComma:bool, allowEmpty:bool) -> Vec<Box<Node>> {
     let mut elts:Vec<Box<Node>> = vec![];  let mut first:bool = true; 
-    while !self.eat(close){
-{
+    while !self.eat(close) {
         if (!first) {
-{
             self.expect(_comma);
-             jsparse_callback_open("parseExprList-next"); 
+            jsparse_callback_open("parseExprList-next"); 
             if (allowTrailingComma && self.options.allowTrailingCommas && self.eat(close)) {
-break;
-}
-        }
-} else {first = false;}
+				break;
+			}
+		} else {
+			first = false;
+		}
         if (allowEmpty && self.tokType.unwrap()==_comma) {
-elts.push((*nullptr).clone());
-} else {elts.push(self.parseExpression(true, false));}
+			elts.push((*nullptr).clone());
+		} else {
+			elts.push(self.parseExpression(true, false));
+		}
     }
-}
     return elts;
 }
+
 fn parseIdent(&mut self, mut liberal:bool) -> Box<Node> {
     let node:&mut Box<Node> = &mut self.startNode(); 
     if (liberal && self.options.forbidReserved == "everywhere") {

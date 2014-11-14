@@ -77,4 +77,6 @@ fn isIdentifierChar(code:int) -> bool {
 
 fn main() {
     println!("Hello, world!");
+    let mut a = test::AcornParser::new();
+    println!("{}", a.parse("console.log('hello world')".to_string()));
 }

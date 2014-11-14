@@ -1,5 +1,6 @@
 use helper::*;
 use std::mem;
+use std::io;
 
 fn predicate_0(arg:&str) -> bool { return arg == "abstract" || arg == "boolean" || arg == "byte" || arg == "char" || arg == "class" || arg == "double" || arg == "enum" || arg == "export" || arg == "extends" || arg == "final" || arg == "float" || arg == "goto" || arg == "implements" || arg == "import" || arg == "int" || arg == "interface" || arg == "long" || arg == "native" || arg == "package" || arg == "private" || arg == "protected" || arg == "public" || arg == "short" || arg == "static" || arg == "super" || arg == "synchronized" || arg == "throws" || arg == "transient" || arg == "volatile"; }
 fn predicate_1(arg:&str) -> bool { return arg == "class" || arg == "enum" || arg == "extends" || arg == "super" || arg == "const" || arg == "export" || arg == "import"; }
@@ -159,9 +160,8 @@ return true;
 
 static mut _input:&'static str = "";
 
-fn set_input(input:String) {
+fn set_input(me:&str) {
 	unsafe {
-		let me:&str = input.as_slice();
 		let val:&'static str = mem::transmute(me);
 		_input = val;
 	}
@@ -204,8 +204,9 @@ impl AcornParser {
 		};
 	}
 
-pub fn parse(&mut self, inpt:String) -> Box<Node> {
-	unsafe { set_input(inpt) };
+pub fn parse<'a>(&mut self, inpt:&'a String) -> Box<Node> {
+	let input:&'a str = inpt.as_slice();
+	unsafe { set_input(input) };
     setOptions(defaultOptions);
     self.initTokenState();
     let mut program:Option<Box<Node>> = None;
@@ -839,45 +840,46 @@ fn readWord1(&mut self) -> String {
     let mut word:String = "".to_string();
     let mut first:bool = true;
     let mut start:int = self.tokPos as int;
-    ;
-loop{{
+	loop {
         let mut ch:int = charCodeAt(get_input(), self.tokPos); 
         if (isIdentifierChar(ch)) {
-{
             if (self.containsEsc) {
-word.push_str(charAt(get_input(), self.tokPos).as_slice());
-}
+				word.push_str(charAt(get_input(), self.tokPos).as_slice());
+			}
             self.tokPos+= 1;
-        }
-} else {if (ch==92) {
-{
-            if (!self.containsEsc) {
-word = slice(get_input(), start, self.tokPos as int).to_string();
-}
-            self.containsEsc = true;
-            self.tokPos+= 1;
-            if (charCodeAt(get_input(), self.tokPos) != 117) {
-raise(self.tokPos as int, "Expecting Unicode escape sequence \\uXXXX");
-}
-            self.tokPos+= 1;
-            let mut esc:int = self.readHexChar(4); 
-            let mut escStr:String = fromCharCode(esc as u32);
-            if (escStr.len() == 0) {
-raise(self.tokPos as int - 1, "Invalid Unicode escape");
-}
-            if (!(if first { isIdentifierStart(esc) } else { isIdentifierChar(esc) })) {
-raise(self.tokPos as int - 4, "Invalid Unicode escape");
-}
-            word.push_str(escStr.as_slice());
-        }
-} else {{
-            break;
-        }}}
+		} else {
+			if (ch==92) {
+            	if (!self.containsEsc) {
+					word = slice(get_input(), start, self.tokPos as int).to_string();
+				}
+	            self.containsEsc = true;
+	            self.tokPos+= 1;
+            	if (charCodeAt(get_input(), self.tokPos) != 117) {
+					raise(self.tokPos as int, "Expecting Unicode escape sequence \\uXXXX");
+				}
+	            self.tokPos+= 1;
+	            let mut esc:int = self.readHexChar(4); 
+	            let mut escStr:String = fromCharCode(esc as u32);
+            	if (escStr.len() == 0) {
+					raise(self.tokPos as int - 1, "Invalid Unicode escape");
+				}
+            	if (!(if first { isIdentifierStart(esc) } else { isIdentifierChar(esc) })) {
+					raise(self.tokPos as int - 4, "Invalid Unicode escape");
+				}
+            	word.push_str(escStr.as_slice());
+			} else {
+            	break;
+        	}
+       	}
         first = false;
-    };
+    }
+    if self.containsEsc {
+    	word
+    } else {
+    	slice(get_input(), start, self.tokPos as int).to_string()
+    }
 }
-    return if self.containsEsc { word } else { slice(get_input(), start, self.tokPos as int).to_string() };
-}
+
 fn readWord(&mut self) -> int {
     let mut word:String = self.readWord1(); 
     let mut _type :keyword_t = _name; 
@@ -946,7 +948,7 @@ node.range[1] = self.lastEnd;
 }
 
 fn eat(&mut self, _type :keyword_t) -> bool {
-	println!("-> eat {} expecting {}", self.tokType.unwrap(), _type);
+	writeln!(io::stderr(), "-> eat {} expecting {}", self.tokType.unwrap(), _type);
     if (self.tokType.unwrap() == _type) {
         self.next();
         return true;
@@ -986,7 +988,7 @@ return 0;
 fn parseTopLevel(&mut self, mut program:Option<Box<Node>>) -> Box<Node> {
 	self.lastEnd = self.tokPos as int;
     self.lastStart = self.tokPos as int;
-    println!("hey");
+    writeln!(io::stderr(), "hey");
     
     self._strict = false;
     self.inGenerator = false;
@@ -1009,9 +1011,9 @@ self.setStrict(true);
         first = false;
     }
 }
-println!("ho");
+writeln!(io::stderr(), "ho");
     self.enterNode(&mut node, "Program");
-    println!("done");
+    writeln!(io::stderr(), "done");
     return self.finishNode(node);
 }
 
@@ -2040,30 +2042,28 @@ fn parseExprList(&mut self, close:keyword_t, allowTrailingComma:bool, allowEmpty
 
 fn parseIdent(&mut self, mut liberal:bool) -> Box<Node> {
     let node:&mut Box<Node> = &mut self.startNode(); 
-    if (liberal && self.options.forbidReserved == "everywhere") {
-liberal = false;
-}
-    if (self.tokType.unwrap()==_name) {
-{
-	let tokval = self.tokVal.clone().unwrap();
+    if liberal && self.options.forbidReserved == "everywhere" {
+		liberal = false;
+	}
+    if (self.tokType.unwrap() == _name) {
+		let tokval = self.tokVal.clone().unwrap();
         if (!liberal && (self.options.forbidReserved.len() > 0 && (if self.options.ecmaVersion==3 { isReservedWord3 } else { isReservedWord5 })(tokval.to_string().as_slice()) || self._strict && isStrictReservedWord(tokval.to_string().as_slice())) && indexOf(slice(get_input(), self.tokStart, self.tokEnd), "\\", 0) == -1) {
-        	
-raise(self.tokStart, ("The keyword '".to_string() + tokval.to_string() + "' is reserved").as_slice());
-}
+			raise(self.tokStart, ("The keyword '".to_string() + tokval.to_string() + "' is reserved").as_slice());
+		}
         node.name = tokval.to_string();
-    }
-} else {if (liberal && self.tokType.unwrap().keyword.len() > 0) {
-{
-        node.name = self.tokType.unwrap().keyword.to_string();
-    }
-} else {{
-        self.expected(None);
-    }}}
+	} else {
+		if (liberal && self.tokType.unwrap().keyword.len() > 0) {
+        	node.name = self.tokType.unwrap().keyword.to_string();
+		} else {
+        	self.expected(None);
+    	}
+   	}
     self.tokRegexpAllowed = false;
     self.next();
     self.enterNode(node, "Identifier");
     return self.finishNode(node.clone());
 }
+
 fn parseExport<'a>(&'a mut self, node:&'a mut Box<Node>) -> Box<Node> {
     self.next();
     if (self.tokType.unwrap()==_var || self.tokType.unwrap()==_const || self.tokType.unwrap()==_let || self.tokType.unwrap()==_function || self.tokType.unwrap()==_class) {

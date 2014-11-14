@@ -1,6 +1,10 @@
 use std;
 use std::f64;
 use std::fmt;
+use std::io;
+use serialize::{Encodable, Encoder};
+use serialize::json::ToJson;
+use serialize::json;
 
 pub struct options_t {
 	pub ecmaVersion:int,
@@ -15,6 +19,13 @@ pub struct options_t {
 	pub sourceFile:&'static str,
 	pub directSourceFile:&'static str,
 }
+
+// trait RootNode { }
+
+// trait EncodableNode<S, E> : RootNode + Encodable<S, E> { }
+
+
+// impl<>
 
 #[deriving(Clone, Show)]
 pub struct Node {
@@ -85,6 +96,76 @@ pub struct Node {
 	pub superClass:Option<Box<Node>>,
 }
 
+#[deriving(Encodable)]
+pub struct ProgramNode {
+	pub bodylist:Vec<Box<Node>>,
+}
+
+#[deriving(Encodable)]
+pub struct ExpressionStatementNode {
+	pub expression:Option<Box<Node>>,
+}
+
+#[deriving(Encodable)]
+pub struct MemberExpressionNode {
+	pub object:Option<Box<Node>>,
+	pub property:Option<Box<Node>>,
+}
+
+#[deriving(Encodable)]
+pub struct CallExpressionNode {
+	pub callee:Option<Box<Node>>,
+	pub arguments:Vec<Box<Node>>,
+}
+
+impl <S: Encoder<E>, E> Encodable<S, E> for Node {
+  	fn encode(&self, encoder: &mut S) -> Result<(), E> {
+  		match self._type.as_slice() {
+  			"Program" => {
+	  			ProgramNode {
+	  				bodylist: self.bodylist.clone()
+	  			}.encode(encoder);
+	  			Ok(())
+	  		},
+	  		"ExpressionStatement" => {
+	  			ExpressionStatementNode {
+	  				expression: self.expression.clone(),
+	  			}.encode(encoder);
+	  			Ok(())
+	  		},
+	  		"MemberExpression" => {
+	  			MemberExpressionNode {
+	  				object: self.object.clone(),
+	  				property: self.property.clone(),
+	  			}.encode(encoder);
+	  			Ok(())
+	  		},
+	  		"CallExpression" => {
+	  			CallExpressionNode {
+	  				callee: self.callee.clone(),
+	  				arguments: self.arguments.clone(),
+	  			}.encode(encoder);
+	  			Ok(())
+	  		},
+	  		"Identifier" => {
+	  			self.name.encode(encoder)
+	  		},
+	  		"Literal" => {
+	  			match self.value.clone() {
+	  				JS_STRING(s) => s.encode(encoder),
+	  				_ => encoder.emit_nil()
+	  			}
+	  		},
+	  		_ => {
+		  		writeln!(io::stderr(), " TODO: {}", self._type);
+		  		encoder.emit_struct("empty", 0, |encoder| {
+		          Ok(())
+		        })
+		  	}
+	  	}
+    }
+}
+
 impl PartialEq for Node {
 	fn eq(&self, other: &Node) -> bool {
     	self == other
@@ -110,7 +191,7 @@ pub struct keyword_t {
 
 impl fmt::Show for keyword_t {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "[keyword {}, '{}']", self._id, self._type)
+        writeln!(f, "[keyword {}, '{}']", self._id, self._type)
     }
 }
 
@@ -158,8 +239,9 @@ pub fn convert_to_Node_C (arg:&mut Box<Node>) -> &'static str {
 }
 
 pub fn jsparse_callback_close (arg:&str) {
-	println!("close: {}", arg);
+	writeln!(io::stderr(), "close: {}", arg);
 }
+
 
 
 
@@ -237,7 +319,7 @@ pub fn ISNULL(arg:&str) -> bool {
 }
 
 pub fn jsparse_callback_open (arg:&str) {
-	println!("open: {}", arg);
+	writeln!(io::stderr(), "open: {}", arg);
 }
 
 pub fn raise (start:int, message:&str){
@@ -250,7 +332,7 @@ pub fn indexOf(arg:&str, needle:&str, start:int) -> int {
 	return -1;
 }
 
-#[deriving(Clone, Show)]
+#[deriving(Clone, Show, Encodable)]
 pub enum js_any_type {
 	JS_NULL,
 	JS_DOUBLE(f64),
@@ -283,10 +365,9 @@ pub fn toAssignable(node:Box<Node>, a:bool, b:bool) -> Box<Node>
 	node
 }
 
-pub fn slice (arr:&str, start:int, end:int) -> &str {
+pub fn slice (value:&str, start:int, end:int) -> &str {
 	// TODO check negative indices
-	// return arr.substr(start,end - start);
-	arr
+	value.slice_chars(start as uint, end as uint)
 }
 
 pub fn exec (regex: |arg:&str| -> bool, val:&str ) -> Option<Box<Vec<String>>> {

@@ -8,9 +8,12 @@
 
 #[phase(plugin)]
 extern crate lazy_static;
+extern crate serialize;
 
 use std::str;
 use std::char;
+use std::io;
+use serialize::{json, Encodable};
 
 mod test;
 mod helper;
@@ -76,7 +79,13 @@ fn isIdentifierChar(code:int) -> bool {
 }
 
 fn main() {
-    println!("Hello, world!");
+    writeln!(io::stderr(), "Hello, world!");
     let mut a = test::AcornParser::new();
-    println!("{}", a.parse("console.log('hello world')".to_string()));
+
+    let contents = io::File::open(&Path::new("input.js")).read_to_string().unwrap();
+    println!("wow {}", contents);
+    let result = a.parse(&contents.to_string());
+    // println!("{}", result);
+    // let output = helper::ProgramNode::inherit(&*result);
+    println!("{}", json::encode(&*result));
 }

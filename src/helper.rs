@@ -143,7 +143,7 @@ pub fn charCodeAt(arg:&str, n:uint) -> int {
 	return arg.utf16_units().nth(n).unwrap() as int;
 }
 
-pub fn convert_to_Node_C (arg:Box<Node>) -> &'static str {
+pub fn convert_to_Node_C (arg:&mut Box<Node>) -> &'static str {
 	return "";
 }
 
@@ -261,7 +261,7 @@ impl js_any_type {
 pub fn setOptions (arg:options_t) {
 }
 
-pub fn isUseStrict (arg:Box<Node>) -> bool {
+pub fn isUseStrict (arg:&mut Box<Node>) -> bool {
 	false
 }
 

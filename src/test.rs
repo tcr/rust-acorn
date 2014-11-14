@@ -1,4 +1,5 @@
 use helper::*;
+use std::mem;
 
 fn predicate_0(arg:&str) -> bool { return arg == "abstract" || arg == "boolean" || arg == "byte" || arg == "char" || arg == "class" || arg == "double" || arg == "enum" || arg == "export" || arg == "extends" || arg == "final" || arg == "float" || arg == "goto" || arg == "implements" || arg == "import" || arg == "int" || arg == "interface" || arg == "long" || arg == "native" || arg == "package" || arg == "private" || arg == "protected" || arg == "public" || arg == "short" || arg == "static" || arg == "super" || arg == "synchronized" || arg == "throws" || arg == "transient" || arg == "volatile"; }
 fn predicate_1(arg:&str) -> bool { return arg == "class" || arg == "enum" || arg == "extends" || arg == "super" || arg == "const" || arg == "export" || arg == "import"; }
@@ -22,7 +23,6 @@ const version:&'static str = "0.6.1";
 struct AcornParser {
 	options:options_t,
 	input:String,
-	inputLen:uint,
 	sourceFile:String,
 
 	tokVal:Option<js_any_type>,
@@ -157,12 +157,27 @@ return true;
     return code >= 0xaa && test(nonASCIIidentifier, fromCharCode(code).as_slice());
 }
 
+static mut _input:&'static str = "";
+
+fn set_input(input:String) {
+	unsafe {
+		let me:&str = input.as_slice();
+		let val:&'static str = mem::transmute(me);
+		_input = val;
+	}
+}
+
+fn get_input() -> &'static str {
+	unsafe {
+		return _input;
+	}
+}
+
 impl AcornParser {
 	fn new() -> AcornParser {
 		return AcornParser {
 			options: options_t {ecmaVersion: 5, strictSemicolons: false, allowTrailingCommas: true, forbidReserved: "", allowReturnOutsideFunction: false, locations: false, ranges: false, program: None, sourceFile: "", directSourceFile: ""},
 			input: "".to_string(),
-			inputLen: 0,
 			sourceFile: "".to_string(),
 
 			tokVal: None,
@@ -189,12 +204,12 @@ impl AcornParser {
 		};
 	}
 
-fn parse(&mut self, inpt:&'static String, opts:options_t) -> Box<Node> {
-    self.input = inpt.clone();
-    self.inputLen = self.input.len();
+fn parse(&mut self, inpt:String, opts:options_t) -> Box<Node> {
+	unsafe { set_input(inpt) };
     setOptions(opts);
     self.initTokenState();
-    return self.parseTopLevel(self.options.program.unwrap());
+    let mut program:Option<Box<Node>> = None;
+    return self.parseTopLevel(program);
 }
 
 // fn Position() -> () {
@@ -227,7 +242,7 @@ self.skipSpace();
 fn skipBlockComment(&mut self) -> int {
 	self.tokPos += 2;
     let mut start:int = self.tokPos as int;
-    let mut end:int = indexOf(self.input.as_slice(), "*/", self.tokPos as int);
+    let mut end:int = indexOf(get_input(), "*/", self.tokPos as int);
     if (end==-1) {
 raise((self.tokPos as int) - 2, "Unterminated comment");
 }
@@ -238,19 +253,19 @@ raise((self.tokPos as int) - 2, "Unterminated comment");
 fn skipLineComment(&mut self) {
     let mut start:int = self.tokPos as int;
     self.tokPos += 2;
-    let mut ch:int = charCodeAt(self.input.as_slice(), self.tokPos) as int; 
-    while self.tokPos < self.inputLen && ch!=10 && ch!=13 && ch!=8232 && ch!=8233{
+    let mut ch:int = charCodeAt(get_input(), self.tokPos) as int; 
+    while self.tokPos < get_input().len() && ch!=10 && ch!=13 && ch!=8232 && ch!=8233{
 {
         self.tokPos+= 1;
-        ch = charCodeAt(self.input.as_slice(), self.tokPos) as int;
+        ch = charCodeAt(get_input(), self.tokPos) as int;
     }
 }
     
 }
 fn skipSpace(&mut self) {
-    while self.tokPos < self.inputLen{
+    while self.tokPos < get_input().len(){
 {
-        let mut ch:int = charCodeAt(self.input.as_slice(), self.tokPos) as int;
+        let mut ch:int = charCodeAt(get_input(), self.tokPos) as int;
         if (ch==32) {
 {
             self.tokPos+= 1;
@@ -258,7 +273,7 @@ fn skipSpace(&mut self) {
 } else {if (ch==13) {
 {
             self.tokPos+= 1;
-            let mut next:int = charCodeAt(self.input.as_slice(), self.tokPos) as int; 
+            let mut next:int = charCodeAt(get_input(), self.tokPos) as int; 
             if (next==10) {
 {
                 self.tokPos+= 1;
@@ -277,7 +292,7 @@ fn skipSpace(&mut self) {
         }
 } else {if (ch==47) {
 {
-            let mut next:int = charCodeAt(self.input.as_slice(), self.tokPos + 1) as int; 
+            let mut next:int = charCodeAt(get_input(), self.tokPos + 1) as int; 
             if (next==42) {
 {
                 self.skipBlockComment();
@@ -303,11 +318,11 @@ fn skipSpace(&mut self) {
 }
 }
 fn readToken_dot(&mut self) -> int {
-    let mut next:int = charCodeAt(self.input.as_slice(), self.tokPos + 1) as int; 
+    let mut next:int = charCodeAt(get_input(), self.tokPos + 1) as int; 
     if (next >= 48 && next <= 57) {
 return self.readNumber(true);
 }
-    let mut next2:int = charCodeAt(self.input.as_slice(), self.tokPos + 2) as int; 
+    let mut next2:int = charCodeAt(get_input(), self.tokPos + 2) as int; 
     if (self.options.ecmaVersion >= 6 && next==46 && next2==46) {
 {
         self.tokPos += 3;
@@ -319,7 +334,7 @@ return self.readNumber(true);
     }}
 }
 fn readToken_slash(&mut self) -> int {
-    let mut next:int = charCodeAt(self.input.as_slice(), self.tokPos + 1) as int; 
+    let mut next:int = charCodeAt(get_input(), self.tokPos + 1) as int; 
     if (self.tokRegexpAllowed) {
 {
         self.tokPos+= 1;
@@ -332,14 +347,14 @@ return self.finishOp(_assign, 2);
     return self.finishOp(_slash, 1);
 }
 fn readToken_mult_modulo(&mut self, code:int) -> int {
-    let mut next:int = charCodeAt(self.input.as_slice(), self.tokPos + 1) as int; 
+    let mut next:int = charCodeAt(get_input(), self.tokPos + 1) as int; 
     if (next==61) {
 return self.finishOp(_assign, 2);
 }
     return self.finishOp(if code==42 { _star } else { _modulo }, 1);
 }
 fn readToken_pipe_amp(&mut self, code:int) -> int {
-    let mut next:int = charCodeAt(self.input.as_slice(), self.tokPos + 1) as int; 
+    let mut next:int = charCodeAt(get_input(), self.tokPos + 1) as int; 
     if (next==code) {
 return self.finishOp(if code==124 { _logicalOR } else { _logicalAND }, 2);
 }
@@ -349,17 +364,17 @@ return self.finishOp(_assign, 2);
     return self.finishOp(if code==124 { _bitwiseOR } else { _bitwiseAND }, 1);
 }
 fn readToken_caret(&mut self) -> int {
-    let mut next:int = charCodeAt(self.input.as_slice(), self.tokPos + 1) as int; 
+    let mut next:int = charCodeAt(get_input(), self.tokPos + 1) as int; 
     if (next==61) {
 return self.finishOp(_assign, 2);
 }
     return self.finishOp(_bitwiseXOR, 1);
 }
 fn readToken_plus_min(&mut self, code:int) -> int {
-    let mut next:int = charCodeAt(self.input.as_slice(), self.tokPos + 1) as int; 
+    let mut next:int = charCodeAt(get_input(), self.tokPos + 1) as int; 
     if (next==code) {
 {
-        if (next == 45 && charCodeAt(self.input.as_slice(), self.tokPos + 2) == 62 && test(newline, slice(self.input.as_slice(), self.lastEnd, self.tokPos as int))) {
+        if (next == 45 && charCodeAt(get_input(), self.tokPos + 2) == 62 && test(newline, slice(get_input(), self.lastEnd, self.tokPos as int))) {
 {
             self.tokPos += 3;
             self.skipLineComment();
@@ -376,18 +391,18 @@ return self.finishOp(_assign, 2);
     return self.finishOp(_plusMin, 1);
 }
 fn readToken_lt_gt(&mut self, code:int) -> int {
-    let mut next:int = charCodeAt(self.input.as_slice(), self.tokPos + 1) as int; 
+    let mut next:int = charCodeAt(get_input(), self.tokPos + 1) as int; 
     let mut size:int = 1; 
     if (next==code) {
 {
-        size = if code==62 && charCodeAt(self.input.as_slice(), self.tokPos + 2)==62 { 3 } else { 2 };
-        if (charCodeAt(self.input.as_slice(), self.tokPos + size as uint)==61) {
+        size = if code==62 && charCodeAt(get_input(), self.tokPos + 2)==62 { 3 } else { 2 };
+        if (charCodeAt(get_input(), self.tokPos + size as uint)==61) {
 return self.finishOp(_assign, size + 1);
 }
         return self.finishOp(_bitShift, size);
     }
 }
-    if (next == 33 && code == 60 && charCodeAt(self.input.as_slice(), self.tokPos + 2) == 45 && charCodeAt(self.input.as_slice(), self.tokPos + 3) == 45) {
+    if (next == 33 && code == 60 && charCodeAt(get_input(), self.tokPos + 2) == 45 && charCodeAt(get_input(), self.tokPos + 3) == 45) {
 {
         self.tokPos += 4;
         self.skipLineComment();
@@ -396,14 +411,15 @@ return self.finishOp(_assign, size + 1);
     }
 }
     if (next==61) {
-size = if charCodeAt(self.input.as_slice(), self.tokPos + 2)==61 { 3 } else { 2 };
+size = if charCodeAt(get_input(), self.tokPos + 2)==61 { 3 } else { 2 };
 }
     return self.finishOp(_relational, size);
 }
 fn readToken_eq_excl(&mut self, code:int) -> int {
-    let mut next:int = charCodeAt(self.input.as_slice(), self.tokPos + 1) as int; 
+    let mut next:int = charCodeAt(get_input(), self.tokPos + 1) as int; 
     if (next==61) {
-return self.finishOp(_equality, if charCodeAt(self.input.as_slice(), self.tokPos + 2)==61 { 3 } else { 2 });
+    	let tokPos:uint = self.tokPos;
+return self.finishOp(_equality, if charCodeAt(get_input(), tokPos + 2)==61 { 3 } else { 2 });
 }
     if (code==61 && next==62 && self.options.ecmaVersion >= 6) {
 {
@@ -425,7 +441,7 @@ fn getTokenFromCode(&mut self, code:int) -> bool {
                 return true;
             }
 }
-            if (code==36 && charCodeAt(self.input.as_slice(), self.tokPos + 1)==123) {
+            if (code==36 && charCodeAt(get_input(), self.tokPos + 1)==123) {
 {
                 self.tokPos += 2;
                 self.finishToken(_dollarBraceL, JS_NULL);
@@ -478,7 +494,7 @@ return true;},
                 return true;
             }
 }},
-48 => {let mut next:int = charCodeAt(self.input.as_slice(), self.tokPos + 1) as int; ;
+48 => {let mut next:int = charCodeAt(get_input(), self.tokPos + 1) as int; ;
 if (next==120 || next==88) {
 {
                 self.readRadixNumber(16);
@@ -546,18 +562,18 @@ self.tokStart = self.tokPos as int;
     if (forceRegexp) {
 return self.readRegexp();
 }
-    if (self.tokPos >= self.inputLen) {
+    if (self.tokPos >= get_input().len()) {
 return self.finishToken(_eof, JS_NULL);
 }
-    let mut code:int = charCodeAt(self.input.as_slice(), self.tokPos) as int; 
+    let mut code:int = charCodeAt(get_input(), self.tokPos) as int; 
     if (!self.inTemplate && (isIdentifierStart(code) || code==92)) {
 return self.readWord();
 }
     let mut tok:bool = self.getTokenFromCode(code); 
     if (tok==false) {
 {
-        let mut ch:&str = fromCharCode(code as u32).as_slice(); 
-        if (ch=="\\" || test(nonASCIIidentifierStart, ch)) {
+        let mut ch = fromCharCode(code as u32); 
+        if (ch.as_slice()=="\\" || test(nonASCIIidentifierStart, ch.as_slice())) {
 return self.readWord();
 }
         raise(self.tokPos as int, ("Unself.expected character '".to_string() + ch + "'").as_slice());
@@ -566,7 +582,7 @@ return self.readWord();
 return 0;
 }
 fn finishOp(&mut self, _type :keyword_t, size:int) -> int {
-    let mut str:&str = slice(self.input.as_slice(), self.tokPos as int, self.tokPos as int + size); 
+    let mut str:&str = slice(get_input(), self.tokPos as int, self.tokPos as int + size); 
     self.tokPos += size as uint;
     self.finishToken(_type, JS_STRING(str.to_string()));
     return 0;
@@ -575,35 +591,35 @@ fn readRegexp(&mut self) -> int {
     let mut content:&str = "";  let mut escaped:bool = false;  let mut inClass:bool = false;  let mut start:int = self.tokPos as int; 
     ;
 loop{{
-        if (self.tokPos >= self.inputLen) {
+        if (self.tokPos >= get_input().len()) {
 raise(start, "Unterminated regular expression");
 }
-        let mut ch:&str = charAt(self.input.as_slice(), self.tokPos).as_slice(); 
-        if (test(newline, ch)) {
+        let ch:String = charAt(get_input(), self.tokPos);
+        if (test(newline, ch.as_slice())) {
 raise(start, "Unterminated regular expression");
 }
         if (!escaped) {
 {
-            if (ch=="[") {
+            if (ch.as_slice()=="[") {
 inClass = true;
-} else {if (ch=="]" && inClass) {
+} else {if (ch.as_slice()=="]" && inClass) {
 inClass = false;
-} else {if (ch=="/" && !inClass) {
+} else {if (ch.as_slice()=="/" && !inClass) {
 break;
 }}}
-            escaped = ch=="\\";
+            escaped = ch.as_slice()=="\\";
         }
 } else {escaped = false;}
         self.tokPos+= 1;
     };
 }
-    content = slice(self.input.as_slice(), start, self.tokPos as int);
+    content = slice(get_input(), start, self.tokPos as int);
     self.tokPos+= 1;
-    let mut mods:&str = self.readWord1(); 
-    if (mods.len() > 0 && !test(regex_11, mods)) {
+    let mut mods:String = self.readWord1(); 
+    if (mods.len() > 0 && !test(regex_11, mods.as_slice())) {
 raise(start, "Invalid regular expression flag");
 }
-    let mut value = RegExp(content, mods); 
+    let mut value = RegExp(content, mods.as_slice()); 
      if (value.len() == 0) { raise(start, "Error parsing regular expression."); } 
     return self.finishToken(_regexp, JS_REGEXP(value.to_string()));
 }
@@ -611,7 +627,7 @@ fn readInt(&mut self, radix:int, len:int) -> f64 {
     let mut start:int = self.tokPos as int;  let mut total:f64 = 0f64; 
     let mut i:int = 0; ;
 while len == 0 || i < len{{
-        let mut code:int = charCodeAt(self.input.as_slice(), self.tokPos) as int;
+        let mut code:int = charCodeAt(get_input(), self.tokPos) as int;
         let mut val:f64 = 0.0; 
         if (code >= 97) {
 val = (code - 97 + 10) as f64;
@@ -638,28 +654,28 @@ fn readRadixNumber(&mut self, radix:int) -> int {
     if (isNaN(val)) {
 raise(self.tokStart + 2, ("Expected number in radix ".to_string() + radix.to_string()).as_slice());
 }
-    if (isIdentifierStart(charCodeAt(self.input.as_slice(), self.tokPos) as int)) {
+    if (isIdentifierStart(charCodeAt(get_input(), self.tokPos) as int)) {
 raise(self.tokPos as int, "Identifier directly after number");
 }
     return self.finishToken(_num, JS_DOUBLE(val as f64));
 }
 fn readNumber(&mut self, startsWithDot:bool) -> int {
-    let mut start:int = self.tokPos as int;  let mut isFloat:bool = false;  let mut octal:bool = charCodeAt(self.input.as_slice(), self.tokPos)==48; 
+    let mut start:int = self.tokPos as int;  let mut isFloat:bool = false;  let mut octal:bool = charCodeAt(get_input(), self.tokPos)==48; 
     if (!startsWithDot && isNaN(self.readInt(10, 0))) {
 raise(start, "Invalid number");
 }
-    if (charCodeAt(self.input.as_slice(), self.tokPos)==46) {
+    if (charCodeAt(get_input(), self.tokPos)==46) {
 {
         self.tokPos+= 1;
         self.readInt(10, 0);
         isFloat = true;
     }
 }
-    let mut next:int = charCodeAt(self.input.as_slice(), self.tokPos) as int; 
+    let mut next:int = charCodeAt(get_input(), self.tokPos) as int; 
     if (next==69 || next==101) {
 {
 		self.tokPos+= 1;
-        next = charCodeAt(self.input.as_slice(), self.tokPos) as int;
+        next = charCodeAt(get_input(), self.tokPos) as int;
         if (next==43 || next==45) {
 self.tokPos+= 1;
 }
@@ -669,10 +685,10 @@ raise(start, "Invalid number");
         isFloat = true;
     }
 }
-    if (isIdentifierStart(charCodeAt(self.input.as_slice(), self.tokPos) as int)) {
+    if (isIdentifierStart(charCodeAt(get_input(), self.tokPos) as int)) {
 raise(self.tokPos as int, "Identifier directly after number");
 }
-    let mut str:&str = slice(self.input.as_slice(), start, self.tokPos as int);
+    let mut str:&str = slice(get_input(), start, self.tokPos as int);
     let mut val:f64 = 0f64; 
     if (isFloat) {
 val = parseFloat(str);
@@ -683,15 +699,16 @@ raise(start, "Invalid number");
 } else {val = parseInt(str, 8) as f64;}}}
     return self.finishToken(_num, JS_DOUBLE(val));
 }
-fn readCodePoint(&mut self) -> &'static str {
-    let mut ch:int = charCodeAt(self.input.as_slice(), self.tokPos) as int;  let mut code:int = 0i; 
+fn readCodePoint(&mut self) -> String {
+    let mut ch:int = charCodeAt(get_input(), self.tokPos) as int;  let mut code:int = 0i; 
     if (ch==123) {
 {
         if (self.options.ecmaVersion < 6) {
 self.expected(None);
 }
         self.tokPos+= 1;
-        code = self.readHexChar(indexOf(self.input.as_slice(), "}", self.tokPos as int) - self.tokPos as int);
+        let pos = self.tokPos as int;
+        code = self.readHexChar(indexOf(get_input(), "}", pos) - pos);
         self.tokPos+= 1;
         if (code > 0x10FFFF) {
 self.expected(None);
@@ -702,12 +719,12 @@ self.expected(None);
     }}
     if (code <= 0xFFFF) {
 {
-        return fromCharCode(code as u32).as_slice();
+        return fromCharCode(code as u32);
     }
 }
     let mut cu1:int = ((code - 0x10000) >> 10) + 0xD800; 
     let mut cu2:int = ((code - 0x10000) & 1023) + 0xDC00; 
-    return fromCharCode2(cu1 as u32, cu2 as u32).as_slice();
+    return fromCharCode2(cu1 as u32, cu2 as u32);
 }
 fn readString(&mut self, quote:int) -> int {
     if (!self.inTemplate) {
@@ -716,13 +733,13 @@ self.tokPos+= 1;
     let mut out:String = "".to_string(); 
     ;
 loop{{
-        if (self.tokPos >= self.inputLen) {
+        if (self.tokPos >= get_input().len()) {
 raise(self.tokStart, "Unterminated string constant");
 }
-        let mut ch:int = charCodeAt(self.input.as_slice(), self.tokPos) as int; 
+        let mut ch:int = charCodeAt(get_input(), self.tokPos) as int; 
         if (self.inTemplate) {
 {
-            if (ch==96 || ch==36 && charCodeAt(self.input.as_slice(), self.tokPos + 1)==123) {
+            if (ch==96 || ch==36 && charCodeAt(get_input(), self.tokPos + 1)==123) {
 return self.finishToken(_string, JS_STRING(out.to_string()));
 }
         }
@@ -735,14 +752,14 @@ return self.finishToken(_string, JS_STRING(out.to_string()));
         if (ch==92) {
 {
 		self.tokPos+= 1;
-            ch = charCodeAt(self.input.as_slice(), self.tokPos) as int;
-            let mut octalmatch = exec(regex_13, slice(self.input.as_slice(), self.tokPos as int, self.tokPos as int + 3)); 
-            let mut octal:&str = match octalmatch { Some(m) => m[0].as_slice(), None => "0" };
-            while octal.len() > 0 && parseInt(octal, 8) > 255{
-octal = slice(octal, 0, -1);
+            ch = charCodeAt(get_input(), self.tokPos) as int;
+            let mut octalmatch = exec(regex_13, slice(get_input(), self.tokPos as int, self.tokPos as int + 3)); 
+            let mut octal:String = match octalmatch { Some(m) => m[0].clone(), None => "0".to_string() };
+            while octal.len() > 0 && parseInt(octal.as_slice(), 8) > 255{
+octal = slice(octal.as_slice(), 0, -1).to_string();
 }
-            if (octal=="0") {
-octal = "";
+            if (octal.as_slice()=="0") {
+octal = "".to_string();
 }
             self.tokPos+= 1;
             if (octal.len() > 0) {
@@ -750,7 +767,7 @@ octal = "";
                 if (self._strict) {
 raise(self.tokPos as int - 2, "Octal literal in self._strict mode");
 }
-                out.push_str(fromCharCode(parseInt(octal, 8) as u32).as_slice());
+                out.push_str(fromCharCode(parseInt(octal.as_slice(), 8) as u32).as_slice());
                 self.tokPos += octal.len() - 1;
             }
 } else {{
@@ -775,7 +792,7 @@ break;},
 break;},
 48 => {out.push('\u0000');;
 break;},
-13 => {if (charCodeAt(self.input.as_slice(), self.tokPos)==10) {
+13 => {if (charCodeAt(get_input(), self.tokPos)==10) {
 self.tokPos+= 1;
 }},
 10 => {;
@@ -790,7 +807,7 @@ break;}}
 {
                 if (self.inTemplate) {
 {
-                    if (ch==13 && charCodeAt(self.input.as_slice(), self.tokPos)==10) {
+                    if (ch==13 && charCodeAt(get_input(), self.tokPos)==10) {
 {
                         self.tokPos+= 1;
                         ch = 10;
@@ -817,41 +834,41 @@ raise(self.tokStart, "Bad character escape sequence");
     return n as int;
 }
 
-fn readWord1(&mut self) -> &'static str {
+fn readWord1(&mut self) -> String {
     self.containsEsc = false;
     let mut word:String = "".to_string();
     let mut first:bool = true;
     let mut start:int = self.tokPos as int;
     ;
 loop{{
-        let mut ch:int = charCodeAt(self.input.as_slice(), self.tokPos); 
+        let mut ch:int = charCodeAt(get_input(), self.tokPos); 
         if (isIdentifierChar(ch)) {
 {
             if (self.containsEsc) {
-word.push_str(charAt(self.input.as_slice(), self.tokPos).as_slice());
+word.push_str(charAt(get_input(), self.tokPos).as_slice());
 }
             self.tokPos+= 1;
         }
 } else {if (ch==92) {
 {
             if (!self.containsEsc) {
-word = slice(self.input.as_slice(), start, self.tokPos as int).to_string();
+word = slice(get_input(), start, self.tokPos as int).to_string();
 }
             self.containsEsc = true;
             self.tokPos+= 1;
-            if (charCodeAt(self.input.as_slice(), self.tokPos) != 117) {
+            if (charCodeAt(get_input(), self.tokPos) != 117) {
 raise(self.tokPos as int, "Expecting Unicode escape sequence \\uXXXX");
 }
             self.tokPos+= 1;
             let mut esc:int = self.readHexChar(4); 
-            let mut escStr:&str = fromCharCode(esc as u32).as_slice(); 
+            let mut escStr:String = fromCharCode(esc as u32);
             if (escStr.len() == 0) {
 raise(self.tokPos as int - 1, "Invalid Unicode escape");
 }
             if (!(if first { isIdentifierStart(esc) } else { isIdentifierChar(esc) })) {
 raise(self.tokPos as int - 4, "Invalid Unicode escape");
 }
-            word.push_str(escStr);
+            word.push_str(escStr.as_slice());
         }
 } else {{
             break;
@@ -859,13 +876,13 @@ raise(self.tokPos as int - 4, "Invalid Unicode escape");
         first = false;
     };
 }
-    return if self.containsEsc { word.as_slice() } else { slice(self.input.clone().as_slice(), start, self.tokPos as int) };
+    return if self.containsEsc { word } else { slice(get_input(), start, self.tokPos as int).to_string() };
 }
 fn readWord(&mut self) -> int {
-    let mut word:&str = self.readWord1(); 
+    let mut word:String = self.readWord1(); 
     let mut _type :keyword_t = _name; 
-    if (!self.containsEsc && isKeyword(word)) {
-_type = keywordTypes(word);
+    if (!self.containsEsc && isKeyword(word.as_slice())) {
+_type = keywordTypes(word.as_slice());
 }
     return self.finishToken(_type, JS_STRING(word.to_string()));
 }
@@ -914,17 +931,17 @@ node.range = vec![other.range[0], 0];
 }
     return node;
 }
-fn enterNode(&mut self, node:Box<Node>, _type :&str) -> Box<Node> {
+fn enterNode<'a>(&mut self, node:&'a mut Box<Node>, _type :&str) -> &'a mut Box<Node> {
     node._type = _type.to_string();
     return node;
 }
-fn finishNode(&mut self, node:Box<Node>) -> Box<Node> {
+fn finishNode(&mut self, mut node:Box<Node>) -> Box<Node> {
     node.end = self.lastEnd;
     
     if (self.options.ranges) {
 node.range[1] = self.lastEnd;
 }
-     jsparse_callback_close(convert_to_Node_C(node)); 
+     jsparse_callback_close(convert_to_Node_C(&mut node));
     return node;
 }
 
@@ -939,7 +956,7 @@ fn eat(&mut self, _type :keyword_t) -> bool {
     }}
 }
 fn canInsertSemicolon(&mut self) -> bool {
-    return !self.options.strictSemicolons && (self.tokType.unwrap() ==_eof || self.tokType.unwrap()==_braceR || test(newline, slice(self.input.as_slice(), self.lastEnd, self.tokStart)));
+    return !self.options.strictSemicolons && (self.tokType.unwrap() ==_eof || self.tokType.unwrap()==_braceR || test(newline, slice(get_input(), self.lastEnd, self.tokStart)));
 }
 fn semicolon(&mut self) -> int {
     if (!self.eat(_semi) && !self.canInsertSemicolon()) {
@@ -957,7 +974,7 @@ fn expected(&mut self, pos:Option<int>) -> int {
 }
 
 
-fn checkSpreadAssign(&mut self, node:Box<Node>) -> int {
+fn checkSpreadAssign<'a>(&'a mut self, node:&'a mut Box<Node>) -> int {
     if (node._type.as_slice()!="Identifier" && node._type.as_slice()!="ArrayPattern") {
 self.expected(Some(node.start));
 }
@@ -966,7 +983,7 @@ return 0;
 
 
 
-fn parseTopLevel(&mut self, program:Box<Node>) -> Box<Node> {
+fn parseTopLevel(&mut self, mut program:Option<Box<Node>>) -> Box<Node> {
 	self.lastEnd = self.tokPos as int;
     self.lastStart = self.tokPos as int;
     
@@ -975,22 +992,23 @@ fn parseTopLevel(&mut self, program:Box<Node>) -> Box<Node> {
     self.inFunction = false;
     self.labels = vec![];
     self.readToken(false);
-    let mut node:Box<Node> = if program == (*nullptr) { self.startNode() } else { program };
+    let hasprogram = program.is_some();
+    let mut node:Box<Node> = if program.is_some() { self.startNode() } else { program.unwrap() };
     let mut first:bool = true; 
-    if program == (*nullptr) {
+    if !hasprogram {
 node.bodylist = vec![];
 }
     while self.tokType.unwrap() !=_eof{
 {
-        let mut stmt:Box<Node> = self.parseStatement(); 
-        push(node.bodylist, stmt);
+        let mut stmt:&mut Box<Node> = &mut self.parseStatement(); 
         if (first && isUseStrict(stmt)) {
 self.setStrict(true);
 }
+        node.bodylist.push(*stmt);
         first = false;
     }
 }
-    self.enterNode(node, "Program");
+    self.enterNode(&mut node, "Program");
     return self.finishNode(node);
 }
 
@@ -999,7 +1017,7 @@ fn parseStatement(&mut self) -> Box<Node> {
     if (self.tokType.unwrap()==_slash || self.tokType.unwrap()==_assign && self.tokVal.unwrap().to_string().as_slice() == "/=") {
 self.readToken(true);
 }
-    let mut starttype:keyword_t = self.tokType.unwrap();  let mut node:Box<Node> = self.startNode(); 
+    let mut starttype:keyword_t = self.tokType.unwrap();  let node:&mut Box<Node> = &mut self.startNode(); 
     match starttype{
 _break |
 _continue => {return self.parseBreakContinueStatement(node, starttype.keyword);},
@@ -1022,12 +1040,12 @@ _braceL => {return self.parseBlock(false);},
 _semi => {return self.parseEmptyStatement(node);},
 _export => {return self.parseExport(node);},
 _import => {return self.parseImport(node);},
-_ => {let mut maybeName = self.tokVal;  let mut expr:Box<Node> = self.parseExpression(false, false); ;
+_ => {let mut maybeName = self.tokVal;  let mut expr:&mut Box<Node> = &mut self.parseExpression(false, false); ;
 if (starttype==_name && expr._type.as_slice()=="Identifier" && self.eat(_colon)) {
 return self.parseLabeledStatement(node, maybeName.unwrap().to_string().as_slice(), expr);
-} else {return self.parseExpressionStatement(node, expr);}}}
+} else {return self.parseExpressionStatement(node, *expr);}}}
 }
-fn parseBreakContinueStatement(&mut self, node:Box<Node>, keyword:&str) -> Box<Node> {
+fn parseBreakContinueStatement<'a>(&'a mut self, node:&'a mut Box<Node>, keyword:&str) -> Box<Node> {
     let mut isBreak:bool = keyword == "break"; 
     self.next();
     if (self.eat(_semi) || self.canInsertSemicolon()) {
@@ -1057,15 +1075,15 @@ break;
 raise(node.start, ("Unsyntactic ".to_string() + keyword).as_slice());
 }
     self.enterNode(node, if isBreak { "BreakStatement" } else { "ContinueStatement" });
-    return self.finishNode(node);
+    return self.finishNode(*node);
 }
-fn parseDebuggerStatement(&mut self, node:Box<Node>) -> Box<Node> {
+fn parseDebuggerStatement<'a>(&'a mut self, node:&'a mut Box<Node>) -> Box<Node> {
     self.next();
     self.semicolon();
     self.enterNode(node, "DebuggerStatement");
-    return self.finishNode(node);
+    return self.finishNode(*node);
 }
-fn parseDoStatement(&mut self, node:Box<Node>) -> Box<Node> {
+fn parseDoStatement<'a>(&'a mut self, node:&'a mut Box<Node>) -> Box<Node> {
 self.    next();
     self.labels.push((*loopLabel));
     node.body = Some(self.parseStatement());
@@ -1074,9 +1092,9 @@ self.    next();
     node.test = Some(self.parseParenExpression());
     self.semicolon();
     self.enterNode(node, "DoWhileStatement");
-    return self.finishNode(node);
+    return self.finishNode(*node);
 }
-fn parseForStatement(&mut self, node:Box<Node>) -> Box<Node> {
+fn parseForStatement<'a>(&'a mut self, node:&'a mut Box<Node>) -> Box<Node> {
     self.next();
     self.labels.push((*loopLabel));
     self.expect(_parenL);
@@ -1087,9 +1105,9 @@ return self.parseFor(node, (*nullptr));
 {
         let mut init:Box<Node> = self.startNode();  let mut varKind:&str = self.tokType.unwrap().keyword;  let mut isLet:bool = self.tokType.unwrap()==_let; 
         self.next();
-        self.parseVar(init, true, varKind);
-        self.enterNode(init, "VariableDeclaration");
-        self.finishNode(init);
+        self.parseVar(&mut init, true, varKind);
+        self.enterNode(&mut init, "VariableDeclaration");
+        init = self.finishNode(init);
         if ((self.tokType.unwrap()==_in || (self.tokType.unwrap()==_name && self.tokVal.unwrap().to_string().as_slice()=="of")) && init.declarations.len()==1 && !(isLet && init.declarations[0].init.is_some())) {
 return self.parseForIn(node, init);
 }
@@ -1106,12 +1124,12 @@ return self.parseForIn(node, init);
 }
     return self.parseFor(node, init);
 }
-fn parseFunctionStatement(&mut self, node:Box<Node>) -> Box<Node> {
+fn parseFunctionStatement<'a>(&'a mut self, node:&'a mut Box<Node>) -> Box<Node> {
      jsparse_callback_open("function-declaration"); 
     self.next();
     return self.parseFunction(node, true, false);
 }
-fn parseIfStatement(&mut self, node:Box<Node>) -> Box<Node> {
+fn parseIfStatement<'a>(&'a mut self, node:&'a mut Box<Node>) -> Box<Node> {
      jsparse_callback_open("if-start"); 
     self.enterNode(node, "IfStatement");
     self.next();
@@ -1129,9 +1147,9 @@ fn parseIfStatement(&mut self, node:Box<Node>) -> Box<Node> {
         node.alternate = None;
     }}
      jsparse_callback_open("if-end"); 
-    return self.finishNode(node);
+    return self.finishNode(*node);
 }
-fn parseReturnStatement(&mut self, node:Box<Node>) -> Box<Node> {
+fn parseReturnStatement<'a>(&'a mut self, node:&'a mut Box<Node>) -> Box<Node> {
      jsparse_callback_open("parseReturnStatement"); 
     if (!self.inFunction && !self.options.allowReturnOutsideFunction) {
 raise(self.tokStart, "'return' outside of function");
@@ -1151,9 +1169,9 @@ node.argument = None;
          jsparse_callback_open("return-argument"); 
     }}
     self.enterNode(node, "ReturnStatement");
-    return self.finishNode(node);
+    return self.finishNode(*node);
 }
-fn parseSwitchStatement(&mut self, node:Box<Node>) -> Box<Node> {
+fn parseSwitchStatement<'a>(&'a mut self, node:&'a mut Box<Node>) -> Box<Node> {
     self.next();
     node.discriminant = Some(self.parseParenExpression());
     node.cases = vec![];
@@ -1166,7 +1184,7 @@ while self.tokType.unwrap() != _braceR{{
             let mut isCase:bool = self.tokType.unwrap()==_case; 
             if (cur.is_some()) {
 {
-                self.enterNode(cur.unwrap(), "SwitchCase");
+                self.enterNode(&mut cur.unwrap(), "SwitchCase");
                 self.finishNode(cur.unwrap());
             }
 }
@@ -1189,32 +1207,32 @@ raise(self.lastStart, "Multiple default clauses");
             if (cur.is_none()) {
 self.expected(None);
 }
-            push(cur.unwrap().consequents, self.parseStatement());
+            cur.unwrap().consequents.push(self.parseStatement());
         }}
     };
 }
     if (cur.is_some()) {
 {
-        self.enterNode(cur.unwrap(), "SwitchCase");
+        self.enterNode(&mut cur.unwrap(), "SwitchCase");
         self.finishNode(cur.unwrap());
     }
 }
     self.next();
     self.labels.pop();
     self.enterNode(node, "SwitchStatement");
-    return self.finishNode(node);
+    return self.finishNode(*node);
 }
-fn parseThrowStatement(&mut self, node:Box<Node>) -> Box<Node> {
+fn parseThrowStatement<'a>(&'a mut self, node:&'a mut Box<Node>) -> Box<Node> {
     self.next();
-    if (test(newline, slice(self.input.as_slice(), self.lastEnd, self.tokStart))) {
+    if (test(newline, slice(get_input(), self.lastEnd, self.tokStart))) {
 raise(self.lastEnd, "Illegal newline after throw");
 }
     node.argument = Some(self.parseExpression(false, false));
     self.semicolon();
     self.enterNode(node, "ThrowStatement");
-    return self.finishNode(node);
+    return self.finishNode(*node);
 }
-fn parseTryStatement(&mut self, node:Box<Node>) -> Box<Node> {
+fn parseTryStatement<'a>(&'a mut self, node:&'a mut Box<Node>) -> Box<Node> {
     self.next();
     node.block = Some(self.parseBlock(false));
     node.handler = None;
@@ -1230,7 +1248,7 @@ raise(clause.param.unwrap().start, ("Binding ".to_string() + clause.param.unwrap
         self.expect(_parenR);
         clause.guard = None;
         clause.body = Some(self.parseBlock(false));
-        self.enterNode(clause, "CatchClause");
+        self.enterNode(&mut clause, "CatchClause");
         node.handler = Some(self.finishNode(clause));
     }
 }
@@ -1240,16 +1258,16 @@ raise(clause.param.unwrap().start, ("Binding ".to_string() + clause.param.unwrap
 raise(node.start, "Missing catch or finally clause");
 }
     self.enterNode(node, "TryStatement");
-    return self.finishNode(node);
+    return self.finishNode(*node);
 }
-fn parseVarStatement(&mut self, node:Box<Node>, kind:&str) -> Box<Node> {
+fn parseVarStatement<'a>(&'a mut self, node:&'a mut Box<Node>, kind:&str) -> Box<Node> {
     self.next();
     self.parseVar(node, false, kind);
     self.semicolon();
     self.enterNode(node, "VariableDeclaration");
-    return self.finishNode(node);
+    return self.finishNode(*node);
 }
-fn parseWhileStatement(&mut self, node:Box<Node>) -> Box<Node> {
+fn parseWhileStatement<'a>(&'a mut self, node:&'a mut Box<Node>) -> Box<Node> {
     self.next();
      jsparse_callback_open("while-test"); 
     node.test = Some(self.parseParenExpression());
@@ -1259,9 +1277,9 @@ fn parseWhileStatement(&mut self, node:Box<Node>) -> Box<Node> {
     self.labels.pop();
     self.enterNode(node, "WhileStatement");
      jsparse_callback_open("while-end"); 
-    return self.finishNode(node);
+    return self.finishNode(*node);
 }
-fn parseWithStatement(&mut self, node:Box<Node>) -> Box<Node> {
+fn parseWithStatement<'a>(&'a mut self, node:&'a mut Box<Node>) -> Box<Node> {
     if (self._strict) {
 raise(self.tokStart, "'with' in self._strict mode");
 }
@@ -1269,14 +1287,14 @@ raise(self.tokStart, "'with' in self._strict mode");
     node.object = Some(self.parseParenExpression());
     node.body = Some(self.parseStatement());
     self.enterNode(node, "WithStatement");
-    return self.finishNode(node);
+    return self.finishNode(*node);
 }
-fn parseEmptyStatement(&mut self, node:Box<Node>) -> Box<Node> {
+fn parseEmptyStatement<'a>(&'a mut self, node:&'a mut Box<Node>) -> Box<Node> {
     self.next();
     self.enterNode(node, "EmptyStatement");
-    return self.finishNode(node);
+    return self.finishNode(*node);
 }
-fn parseLabeledStatement(&mut self, node:Box<Node>, maybeName:&str, expr:Box<Node>) -> Box<Node> {
+fn parseLabeledStatement<'a>(&'a mut self, node:&'a mut Box<Node>, maybeName:&str, expr:&mut Box<Node>) -> Box<Node> {
     let mut i:uint = 0; ;
 while i < self.labels.len(){if (self.labels[i].name.as_slice()==maybeName) {
 raise(expr.start, ("Label '".to_string() + maybeName + "' is already declared").as_slice());
@@ -1287,31 +1305,34 @@ i = i + 1;
     self.labels.push(label_t {kind: kind.to_string(), name: maybeName.to_string()});
     node.body = Some(self.parseStatement());
     self.labels.pop();
-    node.label = Some(expr);
+    node.label = Some(*expr);
     self.enterNode(node, "LabeledStatement");
-    return self.finishNode(node);
+    return self.finishNode(*node);
 }
-fn parseExpressionStatement(&mut self, node:Box<Node>, expr:Box<Node>) -> Box<Node> {
+fn parseExpressionStatement<'a>(&'a mut self, node:&'a mut Box<Node>, expr:Box<Node>) -> Box<Node> {
     node.expression = Some(expr);
     self.semicolon();
     self.enterNode(node, "ExpressionStatement");
-    return self.finishNode(node);
+    return self.finishNode(*node);
 }
 fn parseParenExpression(&mut self) -> Box<Node> {
     self.expect(_parenL);
-    let mut val:Box<Node> = self.parseExpression(false, false); 
+    let mut val:&mut Box<Node> = &mut self.parseExpression(false, false); 
     self.expect(_parenR);
-    return val;
+    return *val;
 }
 fn parseBlock(&mut self, allowStrict:bool) -> Box<Node> {
-    let mut node:Box<Node> = self.startNode();  let mut first:bool = true;  let mut isstrict:bool = false;  let mut oldStrict:bool = false; 
+    let node:&mut Box<Node> = &mut self.startNode();
+    let mut first:bool = true;
+    let mut isstrict:bool = false;
+    let mut oldStrict:bool = false; 
     node.bodylist = vec![];
     self.expect(_braceL);
     while !self.eat(_braceR){
 {
         let mut stmt:Box<Node> = self.parseStatement(); 
-        push(node.bodylist, stmt);
-        if (first && allowStrict && isUseStrict(stmt)) {
+        node.bodylist.push(stmt);
+        if (first && allowStrict && isUseStrict(&mut stmt)) {
 {
             oldStrict = isstrict;
             isstrict = true;
@@ -1325,9 +1346,9 @@ fn parseBlock(&mut self, allowStrict:bool) -> Box<Node> {
 self.setStrict(false);
 }
     self.enterNode(node, "BlockStatement");
-    return self.finishNode(node);
+    return self.finishNode(*node);
 }
-fn parseFor(&mut self, node:Box<Node>, init:Box<Node>) -> Box<Node> {
+fn parseFor<'a>(&'a mut self, node:&'a mut Box<Node>, init:Box<Node>) -> Box<Node> {
     node.init = Some(init);
     self.expect(_semi);
      jsparse_callback_open("for-test"); 
@@ -1341,9 +1362,9 @@ fn parseFor(&mut self, node:Box<Node>, init:Box<Node>) -> Box<Node> {
     self.labels.pop();
      jsparse_callback_open("for-end"); 
     self.enterNode(node, "ForStatement");
-    return self.finishNode(node);
+    return self.finishNode(*node);
 }
-fn parseForIn(&mut self, node:Box<Node>, init:Box<Node>) -> Box<Node> {
+fn parseForIn<'a>(&'a mut self, node:&'a mut Box<Node>, init:Box<Node>) -> Box<Node> {
     let mut _type :&str = if self.tokType.unwrap()==_in { "ForInStatement" } else { "ForOfStatement" }; 
     self.next();
     node.left = Some(init);
@@ -1352,9 +1373,9 @@ fn parseForIn(&mut self, node:Box<Node>, init:Box<Node>) -> Box<Node> {
     node.body = Some(self.parseStatement());
     self.labels.pop();
     self.enterNode(node, _type);
-    return self.finishNode(node);
+    return self.finishNode(*node);
 }
-fn parseVar(&mut self, node:Box<Node>, noIn:bool, kind:&str) -> Box<Node> {
+fn parseVar<'a>(&mut self, node:&'a mut Box<Node>, noIn:bool, kind:&str) -> &'a mut Box<Node> {
     node.declarations = vec![];
     node.kind = kind.to_string();
     ;
@@ -1377,8 +1398,8 @@ loop{{
              jsparse_callback_open("var-declarator-no-assign"); 
             decl.init = None;
         }}}
-        self.enterNode(decl, "VariableDeclarator");
-        push(node.declarations, self.finishNode(decl));
+        self.enterNode(&mut decl, "VariableDeclarator");
+        node.declarations.push(self.finishNode(decl));
         if (!self.eat(_comma)) {
 break;
 }
@@ -1388,54 +1409,54 @@ break;
 }
 fn parseExpression(&mut self, noComma:bool, noIn:bool) -> Box<Node> {
      jsparse_callback_open("parseExpression"); 
-    let mut expr:Box<Node> = self.parseMaybeAssign(noIn); 
+    let mut expr:&mut Box<Node> = &mut self.parseMaybeAssign(noIn); 
     if (!noComma && self.tokType.unwrap()==_comma) {
 {
-        let mut node:Box<Node> = self.startNodeFrom(expr); 
-        node.expressions = vec![expr];
+        let node:&mut Box<Node> = &mut self.startNodeFrom(*expr);
+        node.expressions = vec![*expr];
         while self.eat(_comma){
-push(node.expressions, self.parseMaybeAssign(noIn));
+node.expressions.push(self.parseMaybeAssign(noIn));
 }
         self.enterNode(node, "SequenceExpression");
-        return self.finishNode(node);
+        return self.finishNode(*node);
     }
 }
-    return expr;
+    return *expr;
 }
 fn parseMaybeAssign(&mut self, noIn:bool) -> Box<Node> {
-    let mut left:Box<Node> = self.parseMaybeConditional(noIn); 
+    let mut left:&mut Box<Node> = &mut self.parseMaybeConditional(noIn); 
     if (self.tokType.unwrap().isAssign) {
 {
          jsparse_callback_open(self.tokVal.unwrap().to_string().as_slice()); 
-        let mut node:Box<Node> = self.startNodeFrom(left); 
+        let node:&mut Box<Node> = &mut self.startNodeFrom(*left); 
         node._operator = self.tokVal.unwrap().to_string();
-        node.left = Some(if self.tokType.unwrap()==_eq { toAssignable(left, false, false) } else { left });
+        node.left = Some(if self.tokType.unwrap()==_eq { toAssignable(*left, false, false) } else { *left });
         {
         }
         self.next();
         node.right = Some(self.parseMaybeAssign(noIn));
         self.enterNode(node, "AssignmentExpression");
-        return self.finishNode(node);
+        return self.finishNode(*node);
     }
 }
-    return left;
+    return *left;
 }
 fn parseMaybeConditional(&mut self, noIn:bool) -> Box<Node> {
-    let mut expr:Box<Node> = self.parseExprOps(noIn); 
+    let mut expr:&mut Box<Node> = &mut self.parseExprOps(noIn); 
     if (self.eat(_question)) {
 {
-        let mut node:Box<Node> = self.startNodeFrom(expr); 
-        node.test = Some(expr);
+        let node:&mut Box<Node> = &mut self.startNodeFrom(*expr); 
+        node.test = Some(*expr);
          jsparse_callback_open("ternary-consequent"); 
         node.consequent = Some(self.parseExpression(true, false));
         self.expect(_colon);
          jsparse_callback_open("ternary-alternate"); 
         node.alternate = Some(self.parseExpression(true, noIn));
         self.enterNode(node, "ConditionalExpression");
-        return self.finishNode(node);
+        return self.finishNode(*node);
     }
 }
-    return expr;
+    return *expr;
 }
 fn parseExprOps(&mut self, noIn:bool) -> Box<Node> {
     return self.parseExprOp(self.parseMaybeUnary(), -1, noIn);
@@ -1446,7 +1467,7 @@ fn parseExprOp(&mut self, left:Box<Node>, minPrec:int, noIn:bool) -> Box<Node> {
 {
         if (prec > minPrec) {
 {
-            let mut node:Box<Node> = self.startNodeFrom(left); 
+            let node:&mut Box<Node> = &mut self.startNodeFrom(left); 
             node.left = Some(left);
             node._operator = match self.tokVal.unwrap() {
             	JS_STRING(s) => s,
@@ -1457,7 +1478,7 @@ fn parseExprOp(&mut self, left:Box<Node>, minPrec:int, noIn:bool) -> Box<Node> {
             self.next();
             node.right = Some(self.parseExprOp(self.parseMaybeUnary(), prec, noIn));
             self.enterNode(node, if op==_logicalOR || op==_logicalAND { "LogicalExpression" } else { "BinaryExpression" });
-            let mut exprNode:Box<Node> = self.finishNode(node); 
+            let mut exprNode:Box<Node> = self.finishNode(*node); 
             return self.parseExprOp(exprNode, minPrec, noIn);
         }
 }
@@ -1470,7 +1491,7 @@ fn parseMaybeUnary(&mut self) -> Box<Node> {
     if (self.tokType.unwrap().prefix) {
 {
          jsparse_callback_open(("unary-".to_string() + self.tokVal.unwrap().to_string()).as_slice()); 
-        let mut node:Box<Node> = self.startNode();  let mut update:bool = self.tokType.unwrap().isUpdate; 
+        let node:&mut Box<Node> = &mut self.startNode();  let mut update:bool = self.tokType.unwrap().isUpdate; 
         node._operator = self.tokVal.unwrap().to_string();
         node.prefix = true;
         self.tokRegexpAllowed = true;
@@ -1482,25 +1503,25 @@ checkLVal(node.argument.unwrap());
 } else {if (self._strict && node._operator.as_slice()=="delete" && node.argument.unwrap()._type.as_slice()=="Identifier") {
 raise(node.start, "Deleting local variable in self._strict mode");
 }}
-        return self.finishNode(node);
+        return self.finishNode(*node);
     }
 }
-    let mut expr:Box<Node> = self.parseExprSubscripts(); 
+    let mut expr:&mut Box<Node> = &mut self.parseExprSubscripts(); 
     while self.tokType.unwrap().postfix && !self.canInsertSemicolon(){
 {
          jsparse_callback_open(self.tokVal.unwrap().to_string().as_slice()); 
-        let mut node:Box<Node> = self.startNodeFrom(expr); 
+        let node:&mut Box<Node> = &mut self.startNodeFrom(*expr); 
         node._operator = self.tokVal.unwrap().to_string();
         node.prefix = false;
-        node.argument = Some(expr);
+        node.argument = Some(*expr);
         {
         }
         self.next();
         self.enterNode(node, "UpdateExpression");
-        expr = self.finishNode(node);
+        expr = &mut self.finishNode(*node);
     }
 }
-    return expr;
+    return *expr;
 }
 fn parseExprSubscripts(&mut self) -> Box<Node> {
     return self.parseSubscripts(self.parseExprAtom(), false);
@@ -1509,89 +1530,91 @@ fn parseSubscripts(&mut self, base:Box<Node>, noCalls:bool) -> Box<Node> {
      jsparse_callback_open("subscripts"); 
     if (self.eat(_dot)) {
 {
-        let mut node:Box<Node> = self.startNodeFrom(base); 
+        let node:&mut Box<Node> = &mut self.startNodeFrom(base); 
         self.enterNode(node, "MemberExpression");
         node.object = Some(base);
         node.property = Some(self.parseIdent(true));
         node.computed = false;
-        return self.parseSubscripts(self.finishNode(node), noCalls);
+        return self.parseSubscripts(self.finishNode(*node), noCalls);
     }
 } else {if (self.eat(_bracketL)) {
 {
          jsparse_callback_open("member-var-open"); 
-        let mut node:Box<Node> = self.startNodeFrom(base); 
+        let node:&mut Box<Node> = &mut self.startNodeFrom(base); 
         node.object = Some(base);
         node.property = Some(self.parseExpression(false, false));
         node.computed = true;
         self.expect(_bracketR);
          jsparse_callback_open("member-var-close"); 
         self.enterNode(node, "MemberExpression");
-        return self.parseSubscripts(self.finishNode(node), noCalls);
+        return self.parseSubscripts(self.finishNode(*node), noCalls);
     }
 } else {if (!noCalls && self.eat(_parenL)) {
 {
          jsparse_callback_open("call-open"); 
-        let mut node:Box<Node> = self.startNodeFrom(base); 
+        let node:&mut Box<Node> = &mut self.startNodeFrom(base); 
         self.enterNode(node, "CallExpression");
         node.callee = Some(base);
         node.arguments = self.parseExprList(_parenR, false, false);
-        return self.parseSubscripts(self.finishNode(node), noCalls);
+        return self.parseSubscripts(self.finishNode(*node), noCalls);
     }
 } else {if (self.tokType.unwrap()==_bquote) {
 {
-        let mut node:Box<Node> = self.startNodeFrom(base); 
+        let node:&mut Box<Node> = &mut self.startNodeFrom(base); 
         node.tag = Some(base);
         node.quasi = Some(parseTemplate());
         self.enterNode(node, "TaggedTemplateExpression");
-        return self.parseSubscripts(self.finishNode(node), noCalls);
+        return self.parseSubscripts(self.finishNode(*node), noCalls);
     }
 }}}}
     return base;
 }
 fn parseExprAtom(&mut self) -> Box<Node> {
     match self.tokType.unwrap() {
-_this => {let mut node:Box<Node> = self.startNode(); ;
+_this => {let node:&mut Box<Node> = &mut self.startNode(); ;
 self.next();;
 self.enterNode(node, "ThisExpression");;
-return self.finishNode(node);},
+return self.finishNode(*node);},
 _yield => {if (self.inGenerator) {
 return self.parseYield();
 }},
-_name => {let mut id:Box<Node> = self.parseIdent(self.tokType.unwrap()!=_name); ;
+_name => {let mut id:&mut Box<Node> = &mut self.parseIdent(self.tokType.unwrap()!=_name); ;
 if (self.eat(_arrow)) {
 {
-                return self.parseArrowExpression(self.startNodeFrom(id), vec![id]);
+                return self.parseArrowExpression(&mut self.startNodeFrom(*id), vec![*id]);
             }
 };
-return id;},
+return *id;},
 _num => {},
 _string => {},
-_regexp => {let mut node:Box<Node> = self.startNode(); ;
+_regexp => {let node:&mut Box<Node> = &mut self.startNode(); ;
 node.value = self.tokVal.unwrap();;
-node.raw = slice(self.input.as_slice(), self.tokStart, self.tokEnd).to_string();;
+node.raw = slice(get_input(), self.tokStart, self.tokEnd).to_string();;
 self.next();;
 self.enterNode(node, "Literal");;
-return self.finishNode(node);},
+return self.finishNode(*node);},
 _null => {},
 _true => {},
-_false => {let mut node:Box<Node> = self.startNode(); ;
+_false => {let node:&mut Box<Node> = &mut self.startNode(); ;
 node.raw = self.tokType.unwrap().keyword.to_string();;
 self.next();;
 self.enterNode(node, "Literal");;
-return self.finishNode(node);},
-_parenL => {let mut tokStartLoc1:int = self.tokStartLoc;  let mut tokStart1:int = self.tokStart;  let mut val:Box<Node> = (*nullptr);  let mut exprList:Vec<Box<Node>> = Vec::new(); ;
+return self.finishNode(*node);},
+_parenL => {let mut tokStartLoc1:int = self.tokStartLoc; 
+	let mut tokStart1:int = self.tokStart; 
+	let mut val:&mut Box<Node> = &mut (*nullptr);  let mut exprList:Vec<Box<Node>> = Vec::new(); ;
 self.next();;
 if (self.options.ecmaVersion >= 6 && self.tokType.unwrap()==_for) {
 {
-                val = self.parseComprehension(self.startNode(), true);
+                val = &mut self.parseComprehension(&mut self.startNode(), true);
             }
 } else {{
 		self.metParenL+= 1;
                 let mut oldParenL:int = self.metParenL; 
                 if (self.tokType.unwrap()!=_parenR) {
 {
-                    val = self.parseExpression(false, false);
-                    exprList = if val._type.as_slice()=="SequenceExpression" { val.expressions } else { vec![val] };
+                    val = &mut self.parseExpression(false, false);
+                    exprList = if val._type.as_slice()=="SequenceExpression" { val.expressions } else { vec![*val] };
                 }
 } else {{
                     exprList = vec![];
@@ -1599,10 +1622,10 @@ if (self.options.ecmaVersion >= 6 && self.tokType.unwrap()==_for) {
                 self.expect(_parenR);
                 if (self.metParenL==oldParenL && self.eat(_arrow)) {
 {
-                    val = self.parseArrowExpression(self.startNode(), exprList);
+                    val = &mut self.parseArrowExpression(&mut self.startNode(), exprList);
                 }
 } else {{
-                    if (val == (*nullptr)) {
+                    if (*val == (*nullptr)) {
 self.expected(Some(self.lastStart));
 }
                     if (self.options.ecmaVersion >= 6) {
@@ -1627,8 +1650,8 @@ if (self.options.ranges) {
                 val.range = vec![tokStart1, self.lastEnd];
             }
 };
-return val;},
-_bracketL => {let mut node:Box<Node> = self.startNode(); ;
+return *val;},
+_bracketL => {let node:&mut Box<Node> = &mut self.startNode(); ;
 self.next();;
 if (self.options.ecmaVersion >= 6 && self.tokType.unwrap()==_for) {
 {
@@ -1637,21 +1660,21 @@ if (self.options.ecmaVersion >= 6 && self.tokType.unwrap()==_for) {
 };
 node.elements = self.parseExprList(_bracketR, true, true);;
 self.enterNode(node, "ArrayExpression");;
-return self.finishNode(node);},
+return self.finishNode(*node);},
 _braceL => {return self.parseObj();},
-_function => {let mut node:Box<Node> = self.startNode(); ;
+_function => {let node:&mut Box<Node> = &mut self.startNode(); ;
 self.next();;
 return self.parseFunction(node, false, false);},
-_class => {return self.parseClass(self.startNode(), false);},
+_class => {return self.parseClass(&mut self.startNode(), false);},
 _new => {return self.parseNew();},
 _ellipsis => {return self.parseSpread();},
 _bquote => {return parseTemplate();},
 _ => {self.expected(None);}}
-return (*nullptr);
+return (*nullptr).clone();
 }
 fn parseNew(&mut self) -> Box<Node> {
      jsparse_callback_open("new-open"); 
-    let mut node:Box<Node> = self.startNode(); 
+    let node:&mut Box<Node> = &mut self.startNode(); 
     self.next();
     node.callee = Some(self.parseSubscripts(self.parseExprAtom(), true));
      jsparse_callback_open("new-args"); 
@@ -1660,19 +1683,19 @@ node.arguments = self.parseExprList(_parenR, false, false);
 } else {node.arguments = (*empty);}
      jsparse_callback_open("new-close"); 
     self.enterNode(node, "NewExpression");
-    return self.finishNode(node);
+    return self.finishNode(*node);
 }
 fn parseSpread(&mut self) -> Box<Node> {
-    let mut node:Box<Node> = self.startNode(); 
+    let node:&mut Box<Node> = &mut self.startNode(); 
     self.next();
     node.argument = Some(self.parseExpression(true, false));
     self.enterNode(node, "SpreadElement");
-    return self.finishNode(node);
+    return self.finishNode(*node);
 }
 
 fn parseObj(&mut self) -> Box<Node> {
      jsparse_callback_open("object-literal"); 
-    let mut node:Box<Node> = self.startNode();  let mut first:bool = true;  let mut propHash:&str = ""; 
+    let node:&mut Box<Node> = &mut self.startNode();  let mut first:bool = true;  let mut propHash:&str = ""; 
     node.properties = vec![];
     self.next();
     while !self.eat(_braceR){
@@ -1728,13 +1751,13 @@ self.expected(None);
 } else {self.expected(None);}}}}
         {
         }
-        self.enterNode(prop, "Property");
+        self.enterNode(&mut prop, "Property");
          jsparse_callback_open("object-literal-push"); 
-        push(node.properties, self.finishNode(prop));
+        node.properties.push(self.finishNode(prop));
     }
 }
     self.enterNode(node, "ObjectExpression");
-    return self.finishNode(node);
+    return self.finishNode(*node);
 }
 fn parsePropertyName(&mut self, prop:Box<Node>) -> int {
     if (self.options.ecmaVersion >= 6) {
@@ -1754,7 +1777,7 @@ fn parsePropertyName(&mut self, prop:Box<Node>) -> int {
     prop.key = Some(if self.tokType.unwrap()==_num || self.tokType.unwrap()==_string { self.parseExprAtom() } else { self.parseIdent(true) });
     return 0;
 }
-fn initFunction(&mut self, node:Box<Node>) -> int {
+fn initFunction<'a>(&'a mut self, node:&'a mut Box<Node>) -> int {
     node.id = None;
     node.params = vec![];
     if (self.options.ecmaVersion >= 6) {
@@ -1766,7 +1789,7 @@ fn initFunction(&mut self, node:Box<Node>) -> int {
 }
 return 0;
 }
-fn parseFunction(&mut self, node:Box<Node>, isStatement:bool, allowExpressionBody:bool) -> Box<Node> {
+fn parseFunction<'a>(&'a mut self, node:&'a mut Box<Node>, isStatement:bool, allowExpressionBody:bool) -> Box<Node> {
     self.initFunction(node);
     if (self.options.ecmaVersion >= 6) {
 {
@@ -1783,10 +1806,10 @@ fn parseFunction(&mut self, node:Box<Node>, isStatement:bool, allowExpressionBod
      jsparse_callback_open("function-body"); 
     self.parseFunctionBody(node, allowExpressionBody);
     self.enterNode(node, if isStatement { "FunctionDeclaration" } else { "FunctionExpression" });
-    return self.finishNode(node);
+    return self.finishNode(*node);
 }
 fn parseMethod(&mut self, isGenerator:bool) -> Box<Node> {
-    let mut node:Box<Node> = self.startNode(); 
+    let node:&mut Box<Node> = &mut self.startNode(); 
     self.initFunction(node);
     self.parseFunctionParams(node);
     let mut allowExpressionBody:bool = false; 
@@ -1800,9 +1823,9 @@ fn parseMethod(&mut self, isGenerator:bool) -> Box<Node> {
     }}
     self.parseFunctionBody(node, allowExpressionBody);
     self.enterNode(node, "FunctionExpression");
-    return self.finishNode(node);
+    return self.finishNode(*node);
 }
-fn parseArrowExpression(&mut self, node:Box<Node>, params:Vec<Box<Node>>) -> Box<Node> {
+fn parseArrowExpression<'a>(&'a mut self, node:&'a mut Box<Node>, params:Vec<Box<Node>>) -> Box<Node> {
     self.initFunction(node);
     let mut defaults:Vec<Box<Node>> = node.defaults;  let mut hasDefaults:bool = false; 
     let mut i:uint = 0;  let mut lastI:uint = params.len() - 1; ;
@@ -1812,11 +1835,11 @@ while i <= lastI{{
 {
             hasDefaults = true;
             params[i] = param.left.unwrap();
-            push(defaults, param.right.unwrap());
+            defaults.push(param.right.unwrap());
         }
 } else {{
             toAssignable(param, i==lastI, true);
-            push(defaults, (*nullptr));
+            defaults.push((*nullptr));
             if (param._type.as_slice()=="SpreadElement") {
 {
                 params.pop();
@@ -1833,9 +1856,9 @@ node.defaults = vec![];
 }
     self.parseFunctionBody(node, true);
     self.enterNode(node, "ArrowFunctionExpression");
-    return self.finishNode(node);
+    return self.finishNode(*node);
 }
-fn parseFunctionParams(&mut self, node:Box<Node>) -> int {
+fn parseFunctionParams<'a>(&'a mut self, node:&'a mut Box<Node>) -> int {
     let mut defaults:Vec<Box<Node>> = vec![];  let mut hasDefaults:bool = false; 
     self.expect(_parenL);
     ;
@@ -1847,18 +1870,18 @@ loop{{
 } else {if (self.options.ecmaVersion >= 6 && self.eat(_ellipsis)) {
 {
             node.rest = Some(toAssignable(self.parseExprAtom(), false, true));
-            self.checkSpreadAssign(node.rest.unwrap());
+            self.checkSpreadAssign(&mut node.rest.unwrap());
             self.expect(_parenR);
             break;
         }
 } else {{
              jsparse_callback_open("function-param"); 
-            push(node.params, if self.options.ecmaVersion >= 6 { toAssignable(self.parseExprAtom(), false, true) } else { self.parseIdent(false) });
+            node.params.push(if self.options.ecmaVersion >= 6 { toAssignable(self.parseExprAtom(), false, true) } else { self.parseIdent(false) });
             if (self.options.ecmaVersion >= 6 && self.tokType.unwrap()==_eq) {
 {
                 self.next();
                 hasDefaults = true;
-                push(defaults, self.parseExpression(true, false));
+                defaults.push(self.parseExpression(true, false));
             }
 }
             if (!self.eat(_comma)) {
@@ -1875,7 +1898,7 @@ node.defaults = defaults;
 }
 return 0;
 }
-fn parseFunctionBody(&mut self, node:Box<Node>, allowExpression:bool) -> int {
+fn parseFunctionBody<'a>(&'a mut self, node:&'a mut Box<Node>, allowExpression:bool) -> int {
     let mut isExpression:bool = allowExpression && self.tokType.unwrap()!=_braceL; 
     if (isExpression) {
 {
@@ -1891,7 +1914,7 @@ fn parseFunctionBody(&mut self, node:Box<Node>, allowExpression:bool) -> int {
         self.inGenerator = oldInGen;
         self.labels = oldLabels;
     }}
-    if (self._strict || !isExpression && node.body.unwrap().bodylist.len() > 0 && isUseStrict(node.body.unwrap().bodylist[0])) {
+    if (self._strict || !isExpression && node.body.unwrap().bodylist.len() > 0 && isUseStrict(&mut node.body.unwrap().bodylist[0])) {
 {
         let mut nameHash:&str = ""; 
         if (node.id.is_some()) {
@@ -1911,7 +1934,7 @@ i = i + 1;
 }
 return 0;
 }
-fn parseClass(&mut self, node:Box<Node>, isStatement:bool) -> Box<Node> {
+fn parseClass<'a>(&'a mut self, node:&'a mut Box<Node>, isStatement:bool) -> Box<Node> {
     self.next();
     if (self.tokType.unwrap()==_name) {
 {
@@ -1955,15 +1978,15 @@ self.expected(None);
         //TODO method.value = parseMethod(isGenerator);
         {
         }
-        self.enterNode(method, "MethodDefinition");
-        push(classBody.bodylist, self.finishNode(method));
+        self.enterNode(&mut method, "MethodDefinition");
+        classBody.bodylist.push(self.finishNode(method));
         self.eat(_semi);
     }
 }
-    self.enterNode(classBody, "ClassBody");
+    self.enterNode(&mut classBody, "ClassBody");
     node.body = Some(self.finishNode(classBody));
     self.enterNode(node, if isStatement { "ClassDeclaration" } else { "ClassExpression" });
-    return self.finishNode(node);
+    return self.finishNode(*node);
 }
 fn parseExprList(&mut self, close:keyword_t, allowTrailingComma:bool, allowEmpty:bool) -> Vec<Box<Node>> {
     let mut elts:Vec<Box<Node>> = vec![];  let mut first:bool = true; 
@@ -1979,20 +2002,20 @@ break;
         }
 } else {first = false;}
         if (allowEmpty && self.tokType.unwrap()==_comma) {
-push(elts, (*nullptr));
-} else {push(elts, self.parseExpression(true, false));}
+elts.push((*nullptr));
+} else {elts.push(self.parseExpression(true, false));}
     }
 }
     return elts;
 }
 fn parseIdent(&mut self, liberal:bool) -> Box<Node> {
-    let mut node:Box<Node> = self.startNode(); 
+    let node:&mut Box<Node> = &mut self.startNode(); 
     if (liberal && self.options.forbidReserved == "everywhere") {
 liberal = false;
 }
     if (self.tokType.unwrap()==_name) {
 {
-        if (!liberal && (self.options.forbidReserved.len() > 0 && (if self.options.ecmaVersion==3 { isReservedWord3 } else { isReservedWord5 })(self.tokVal.unwrap().to_string().as_slice()) || self._strict && isStrictReservedWord(self.tokVal.unwrap().to_string().as_slice())) && indexOf(slice(self.input.as_slice(), self.tokStart, self.tokEnd), "\\", 0) == -1) {
+        if (!liberal && (self.options.forbidReserved.len() > 0 && (if self.options.ecmaVersion==3 { isReservedWord3 } else { isReservedWord5 })(self.tokVal.unwrap().to_string().as_slice()) || self._strict && isStrictReservedWord(self.tokVal.unwrap().to_string().as_slice())) && indexOf(slice(get_input(), self.tokStart, self.tokEnd), "\\", 0) == -1) {
 raise(self.tokStart, ("The keyword '".to_string() + self.tokVal.unwrap().to_string() + "' is reserved").as_slice());
 }
         node.name = self.tokVal.unwrap().to_string();
@@ -2007,9 +2030,9 @@ raise(self.tokStart, ("The keyword '".to_string() + self.tokVal.unwrap().to_stri
     self.tokRegexpAllowed = false;
     self.next();
     self.enterNode(node, "Identifier");
-    return self.finishNode(node);
+    return self.finishNode(*node);
 }
-fn parseExport(&mut self, node:Box<Node>) -> Box<Node> {
+fn parseExport<'a>(&'a mut self, node:&'a mut Box<Node>) -> Box<Node> {
     self.next();
     if (self.tokType.unwrap()==_var || self.tokType.unwrap()==_const || self.tokType.unwrap()==_let || self.tokType.unwrap()==_function || self.tokType.unwrap()==_class) {
 {
@@ -2049,16 +2072,16 @@ self.expected(None);
         }}
     }}}
     self.enterNode(node, "ExportDeclaration");
-    return self.finishNode(node);
+    return self.finishNode(*node);
 }
 fn parseExportSpecifiers(&mut self) -> Vec<Box<Node>> {
     let mut nodes:Vec<Box<Node>> = vec![];  let mut first:bool = true; 
     if (self.tokType.unwrap()==_star) {
 {
-        let mut node:Box<Node> = self.startNode(); 
+        let node:&mut Box<Node> = &mut self.startNode(); 
         self.next();
         self.enterNode(node, "ExportBatchSpecifier");
-        push(nodes, self.finishNode(node));
+        nodes.push(self.finishNode(*node));
     }
 } else {{
         self.expect(_braceL);
@@ -2072,7 +2095,7 @@ break;
 }
             }
 } else {first = false;}
-            let mut node:Box<Node> = self.startNode(); 
+            let node:&mut Box<Node> = &mut self.startNode(); 
             node.id = Some(self.parseIdent(false));
             if (self.tokType.unwrap()==_name && self.tokVal.unwrap().to_string().as_slice()=="as") {
 {
@@ -2082,13 +2105,13 @@ break;
                 node.name = null.to_string();
             }}
             self.enterNode(node, "ExportSpecifier");
-            push(nodes, self.finishNode(node));
+            nodes.push(self.finishNode(*node));
         }
 }
     }}
     return nodes;
 }
-fn parseImport(&mut self, node:Box<Node>) -> Box<Node> {
+fn parseImport<'a>(&'a mut self, node:&'a mut Box<Node>) -> Box<Node> {
     self.next();
     if (self.tokType.unwrap()==_string) {
 {
@@ -2111,13 +2134,13 @@ self.expected(None);
         node.kind = (if node.specifiers[0]._default { "default" } else { "named" }).to_string();
     }}
     self.enterNode(node, "ImportDeclaration");
-    return self.finishNode(node);
+    return self.finishNode(*node);
 }
 fn parseImportSpecifiers(&mut self) -> Vec<Box<Node>> {
     let mut nodes:Vec<Box<Node>> = vec![];  let mut first:bool = true; 
     if (self.tokType.unwrap()==_star) {
 {
-        let mut node:Box<Node> = self.startNode(); 
+        let node:&mut Box<Node> = &mut self.startNode(); 
         self.next();
         if (self.tokType.unwrap()!=_name || self.tokVal.unwrap().to_string().as_slice()!="as") {
 self.expected(None);
@@ -2126,20 +2149,20 @@ self.expected(None);
         {
         }
         self.enterNode(node, "ImportBatchSpecifier");
-        push(nodes, self.finishNode(node));
+        nodes.push(self.finishNode(*node));
         return nodes;
     }
 }
     if (self.tokType.unwrap()==_name) {
 {
-        let mut node:Box<Node> = self.startNode(); 
+        let node:&mut Box<Node> = &mut self.startNode(); 
         node.id = Some(self.parseIdent(false));
         {
         }
         node.name = null.to_string();
         node._default = true;
         self.enterNode(node, "ImportSpecifier");
-        push(nodes, self.finishNode(node));
+        nodes.push(self.finishNode(*node));
         if (!self.eat(_comma)) {
 return nodes;
 }
@@ -2156,7 +2179,7 @@ break;
 }
         }
 } else {first = false;}
-        let mut node:Box<Node> = self.startNode(); 
+        let node:&mut Box<Node> = &mut self.startNode(); 
         node.id = Some(self.parseIdent(true));
         if (self.tokType.unwrap()==_name && self.tokVal.unwrap().to_string().as_slice()=="as") {
 {
@@ -2169,13 +2192,13 @@ break;
         }
         node._default = false;
         self.enterNode(node, "ImportSpecifier");
-        push(nodes, self.finishNode(node));
+        nodes.push(self.finishNode(*node));
     }
 }
     return nodes;
 }
 fn parseYield(&mut self) -> Box<Node> {
-    let mut node:Box<Node> = self.startNode(); 
+    let node:&mut Box<Node> = &mut self.startNode(); 
     self.next();
     if (self.eat(_semi) || self.canInsertSemicolon()) {
 {
@@ -2187,9 +2210,9 @@ fn parseYield(&mut self) -> Box<Node> {
         node.argument = Some(self.parseExpression(true, false));
     }}
     self.enterNode(node, "YieldExpression");
-    return self.finishNode(node);
+    return self.finishNode(*node);
 }
-fn parseComprehension(&mut self, node:Box<Node>, isGenerator:bool) -> Box<Node> {
+fn parseComprehension<'a>(&'a mut self, node:&'a mut Box<Node>, isGenerator:bool) -> Box<Node> {
     node.blocks = vec![];
     while self.tokType.unwrap()==_for{
 {
@@ -2206,8 +2229,8 @@ self.expected(None);
         block.of = true;
         block.right = Some(self.parseExpression(false, false));
         self.expect(_parenR);
-        self.enterNode(block, "ComprehensionBlock");
-        push(node.blocks, self.finishNode(block));
+        self.enterNode(&mut block, "ComprehensionBlock");
+        node.blocks.push(self.finishNode(block));
     }
 }
     node.filter = if self.eat(_if) { Some(self.parseParenExpression()) } else { None };
@@ -2215,6 +2238,6 @@ self.expected(None);
     self.expect(if isGenerator { _parenR } else { _bracketR });
     node.generator = isGenerator;
     self.enterNode(node, "ComprehensionExpression");
-    return self.finishNode(node);
+    return self.finishNode(*node);
 }
 }

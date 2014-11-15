@@ -30,8 +30,8 @@ pub struct options_t {
 #[deriving(Clone, Show)]
 pub struct Node {
 	pub _type:String,
-	pub start:int,
-	pub end:int,
+	pub start:uint,
+	pub end:uint,
 	// SourceLocation* loc;
 
 	pub sourceFile:String,
@@ -98,24 +98,60 @@ pub struct Node {
 
 #[deriving(Encodable)]
 pub struct ProgramNode {
-	pub bodylist:Vec<Box<Node>>,
+	pub _type:&'static str,
+	pub start:uint,
+	pub end:uint,
+
+	pub body:Vec<Box<Node>>,
 }
 
 #[deriving(Encodable)]
 pub struct ExpressionStatementNode {
+	pub _type:&'static str,
+	pub start:uint,
+	pub end:uint,
+
 	pub expression:Option<Box<Node>>,
 }
 
 #[deriving(Encodable)]
 pub struct MemberExpressionNode {
+	pub _type:&'static str,
+	pub start:uint,
+	pub end:uint,
+
 	pub object:Option<Box<Node>>,
 	pub property:Option<Box<Node>>,
+	pub computed:bool,
 }
 
 #[deriving(Encodable)]
 pub struct CallExpressionNode {
+	pub _type:&'static str,
+	pub start:uint,
+	pub end:uint,
+	
 	pub callee:Option<Box<Node>>,
 	pub arguments:Vec<Box<Node>>,
+}
+
+#[deriving(Encodable)]
+pub struct IdentifierNode {
+	pub _type:&'static str,
+	pub start:uint,
+	pub end:uint,
+	
+	pub name:String,
+}
+
+#[deriving(Encodable)]
+pub struct LiteralStringNode {
+	pub _type:&'static str,
+	pub start:uint,
+	pub end:uint,
+	
+	pub value:String,
+	pub raw:String,
 }
 
 impl <S: Encoder<E>, E> Encodable<S, E> for Node {
@@ -123,36 +159,62 @@ impl <S: Encoder<E>, E> Encodable<S, E> for Node {
   		match self._type.as_slice() {
   			"Program" => {
 	  			ProgramNode {
-	  				bodylist: self.bodylist.clone()
-	  			}.encode(encoder);
-	  			Ok(())
+	  				_type: "Program",
+	  				start: self.start,
+	  				end: self.end,
+
+	  				body: self.bodylist.clone()
+	  			}.encode(encoder)
 	  		},
 	  		"ExpressionStatement" => {
 	  			ExpressionStatementNode {
+	  				_type: "ExpressionStatement",
+	  				start: self.start,
+	  				end: self.end,
+
 	  				expression: self.expression.clone(),
-	  			}.encode(encoder);
-	  			Ok(())
+	  			}.encode(encoder)
 	  		},
 	  		"MemberExpression" => {
 	  			MemberExpressionNode {
+	  				_type: "MemberExpression",
+	  				start: self.start,
+	  				end: self.end,
+
 	  				object: self.object.clone(),
 	  				property: self.property.clone(),
-	  			}.encode(encoder);
-	  			Ok(())
+	  				computed: self.computed,
+	  			}.encode(encoder)
 	  		},
 	  		"CallExpression" => {
 	  			CallExpressionNode {
+	  				_type: "CallExpression",
+	  				start: self.start,
+	  				end: self.end,
+
 	  				callee: self.callee.clone(),
 	  				arguments: self.arguments.clone(),
-	  			}.encode(encoder);
-	  			Ok(())
+	  			}.encode(encoder)
 	  		},
 	  		"Identifier" => {
-	  			self.name.encode(encoder)
+	  			IdentifierNode {
+	  				_type: "Identifier",
+	  				start: self.start,
+	  				end: self.end,
+
+	  				name: self.name.clone(),
+	  			}.encode(encoder)
 	  		},
 	  		"Literal" => {
 	  			match self.value.clone() {
-	  				JS_STRING(s) => s.encode(encoder),
+	  				JS_STRING(s) => LiteralStringNode {
+		  				_type: "Literal",
+		  				start: self.start,
+		  				end: self.end,
+
+	  					value: s.clone(),
+	  					raw: self.raw.clone(),
+	  				}.encode(encoder),
 	  				_ => encoder.emit_nil()
 	  			}
 	  		},

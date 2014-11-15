@@ -2,6 +2,14 @@
 #![allow(unused_parens)]
 #![allow(non_snake_case)]
 #![allow(non_upper_case_globals)]
+#![allow(unused_variables)]
+#![allow(non_camel_case_types)]
+#![allow(unused_must_use)]
+#![allow(unused_mut)]
+#![allow(unused_assignments)]
+#![allow(unused_unsafe)]
+#![allow(unused_imports)]
+
 #![feature(if_let)]
 #![feature(globs)]
 #![feature(phase)]
@@ -83,7 +91,6 @@ fn main() {
     let mut a = test::AcornParser::new();
 
     let contents = io::File::open(&Path::new("input.js")).read_to_string().unwrap();
-    println!("wow {}", contents);
     let result = a.parse(&contents.to_string());
     // println!("{}", result);
     // let output = helper::ProgramNode::inherit(&*result);

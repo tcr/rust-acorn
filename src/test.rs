@@ -938,7 +938,7 @@ fn enterNode<'a>(&mut self, node:&'a mut Box<Node>, _type :&str) -> &'a mut Box<
     return node;
 }
 fn finishNode(&mut self, mut node:Box<Node>) -> Box<Node> {
-    node.end = self.lastEnd;
+    node.end = self.lastEnd as uint;
     
     if (self.options.ranges) {
 node.range[1] = self.lastEnd;
@@ -978,7 +978,7 @@ fn expected(&mut self, pos:Option<int>) -> int {
 
 fn checkSpreadAssign<'a>(&'a mut self, node:&'a mut Box<Node>) -> int {
     if (node._type.as_slice()!="Identifier" && node._type.as_slice()!="ArrayPattern") {
-self.expected(Some(node.start));
+self.expected(Some(node.start as int));
 }
 return 0;
 }
@@ -1004,9 +1004,10 @@ node.bodylist = vec![];
     while self.tokType.unwrap() !=_eof{
 {
         let mut stmt:Box<Node> = self.parseStatement(); 
+        println!("_____ {}", stmt.start);
         if (first && isUseStrict(&mut stmt)) {
-self.setStrict(true);
-}
+			self.setStrict(true);
+		}
         node.bodylist.push(stmt);
         first = false;
     }
@@ -1018,11 +1019,11 @@ writeln!(io::stderr(), "ho");
 }
 
 fn parseStatement(&mut self) -> Box<Node> {
-     jsparse_callback_open("parseStatement"); 
-     let tok = self.tokType.clone().unwrap();
-     let val = self.tokVal.clone().unwrap();
-    if (tok==_slash || tok==_assign && val.to_string().as_slice() == "/=") {
-self.readToken(true);
+	jsparse_callback_open("parseStatement"); 
+	let tok = self.tokType.clone().unwrap();
+	let val = self.tokVal.clone().unwrap();
+	if (tok==_slash || tok==_assign && val.to_string().as_slice() == "/=") {
+		self.readToken(true);
 }
     let mut starttype:keyword_t = tok;  let node:&mut Box<Node> = &mut self.startNode(); 
     match starttype{
@@ -1080,7 +1081,7 @@ break;
     };
 }
     if (i==self.labels.len()) {
-raise(node.start, ("Unsyntactic ".to_string() + keyword).as_slice());
+raise(node.start as int, ("Unsyntactic ".to_string() + keyword).as_slice());
 }
     self.enterNode(node, if isBreak { "BreakStatement" } else { "ContinueStatement" });
     return self.finishNode(node.clone());
@@ -1252,7 +1253,7 @@ fn parseTryStatement<'a>(&'a mut self, node:&'a mut Box<Node>) -> Box<Node> {
         clause.param = Some(self.parseIdent(false));
         let param = clause.param.clone().unwrap();
         if (self._strict && isStrictBadIdWord(param.name.as_slice())) {
-raise(param.start, ("Binding ".to_string() + param.name + " in self._strict mode").as_slice());
+raise(param.start as int, ("Binding ".to_string() + param.name + " in self._strict mode").as_slice());
 }
         self.expect(_parenR);
         clause.guard = None;
@@ -1264,7 +1265,7 @@ raise(param.start, ("Binding ".to_string() + param.name + " in self._strict mode
     node.guardedHandlers = (*empty).clone();
     node.finalizer = if self.eat(_finally) { Some(self.parseBlock(false)) } else { None };
     if (node.handler.is_none() && node.finalizer.is_none()) {
-raise(node.start, "Missing catch or finally clause");
+raise(node.start as int, "Missing catch or finally clause");
 }
     self.enterNode(node, "TryStatement");
     return self.finishNode(node.clone());
@@ -1306,7 +1307,7 @@ fn parseEmptyStatement<'a>(&'a mut self, node:&'a mut Box<Node>) -> Box<Node> {
 fn parseLabeledStatement<'a>(&'a mut self, node:&'a mut Box<Node>, maybeName:&str, expr:&mut Box<Node>) -> Box<Node> {
     let mut i:uint = 0; ;
 while i < self.labels.len(){if (self.labels[i].name.as_slice()==maybeName) {
-raise(expr.start, ("Label '".to_string() + maybeName + "' is already declared").as_slice());
+raise(expr.start as int, ("Label '".to_string() + maybeName + "' is already declared").as_slice());
 };
 i = i + 1;
 }
@@ -1512,7 +1513,7 @@ fn parseMaybeUnary(&mut self) -> Box<Node> {
         if (update) {
 checkLVal(&node.argument.clone().unwrap());
 } else {if (self._strict && node._operator.as_slice()=="delete" && node.argument.clone().unwrap()._type.as_slice()=="Identifier") {
-raise(node.start, "Deleting local variable in self._strict mode");
+raise(node.start as int, "Deleting local variable in self._strict mode");
 }}
         return self.finishNode(node.clone());
     }
@@ -1666,8 +1667,8 @@ i = i + 1;
 }
                 }}
             }};
-val.start = tokStart1;;
-val.end = self.lastEnd;;
+val.start = tokStart1 as uint;
+val.end = self.lastEnd as uint;
 
 if (self.options.ranges) {
 {

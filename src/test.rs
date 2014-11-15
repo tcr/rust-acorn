@@ -1004,7 +1004,6 @@ node.bodylist = vec![];
     while self.tokType.unwrap() !=_eof{
 {
         let mut stmt:Box<Node> = self.parseStatement(); 
-        println!("_____ {}", stmt.start);
         if (first && isUseStrict(&mut stmt)) {
             self.setStrict(true);
         }
@@ -1024,36 +1023,43 @@ fn parseStatement(&mut self) -> Box<Node> {
     let val = self.tokVal.clone().unwrap();
     if (tok==_slash || tok==_assign && val.to_string().as_slice() == "/=") {
         self.readToken(true);
-}
-    let mut starttype:keyword_t = tok;  let node:&mut Box<Node> = &mut self.startNode(); 
+    }
+    let mut starttype:keyword_t = tok;
+    let node:&mut Box<Node> = &mut self.startNode(); 
     match starttype{
-_break |
-_continue => {return self.parseBreakContinueStatement(node, starttype.keyword);},
-_debugger => {return self.parseDebuggerStatement(node);},
-_do => {return self.parseDoStatement(node);},
-_for => {return self.parseForStatement(node);},
-_function => {return self.parseFunctionStatement(node);},
-_class => {return self.parseClass(node, true);},
-_if => {return self.parseIfStatement(node);},
-_return => {return self.parseReturnStatement(node);},
-_switch => {return self.parseSwitchStatement(node);},
-_throw => {return self.parseThrowStatement(node);},
-_try => {return self.parseTryStatement(node);},
-_var |
-_let |
-_const => {return self.parseVarStatement(node, starttype.keyword);},
-_while => {return self.parseWhileStatement(node);},
-_with => {return self.parseWithStatement(node);},
-_braceL => {return self.parseBlock(false);},
-_semi => {return self.parseEmptyStatement(node);},
-_export => {return self.parseExport(node);},
-_import => {return self.parseImport(node);},
-_ => {let mut maybeName = val;
-    let mut expr:Box<Node> = self.parseExpression(false, false); ;
-if (starttype==_name && expr._type.as_slice()=="Identifier" && self.eat(_colon)) {
-return self.parseLabeledStatement(node, maybeName.to_string().as_slice(), &mut expr);
-} else {return self.parseExpressionStatement(node, expr);}}}
+        _break |
+        _continue => {return self.parseBreakContinueStatement(node, starttype.keyword);},
+        _debugger => {return self.parseDebuggerStatement(node);},
+        _do => {return self.parseDoStatement(node);},
+        _for => {return self.parseForStatement(node);},
+        _function => {return self.parseFunctionStatement(node);},
+        _class => {return self.parseClass(node, true);},
+        _if => {return self.parseIfStatement(node);},
+        _return => {return self.parseReturnStatement(node);},
+        _switch => {return self.parseSwitchStatement(node);},
+        _throw => {return self.parseThrowStatement(node);},
+        _try => {return self.parseTryStatement(node);},
+        _var |
+        _let |
+        _const => {return self.parseVarStatement(node, starttype.keyword);},
+        _while => {return self.parseWhileStatement(node);},
+        _with => {return self.parseWithStatement(node);},
+        _braceL => {return self.parseBlock(false);},
+        _semi => {return self.parseEmptyStatement(node);},
+        _export => {return self.parseExport(node);},
+        _import => {return self.parseImport(node);},
+        _ => {
+            let mut maybeName = val;
+            let mut expr:Box<Node> = self.parseExpression(false, false);
+            if starttype==_name && expr._type.as_slice()=="Identifier" && self.eat(_colon) {
+                return self.parseLabeledStatement(node, maybeName.to_string().as_slice(), &mut expr);
+            } else {
+                return self.parseExpressionStatement(node, expr);
+            }
+        }
+    }
 }
+
 fn parseBreakContinueStatement<'a>(&'a mut self, node:&'a mut Box<Node>, keyword:&str) -> Box<Node> {
     let mut isBreak:bool = keyword == "break"; 
     self.next();

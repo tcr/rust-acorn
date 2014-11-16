@@ -173,6 +173,76 @@ fn get_input() -> &'static str {
     }
 }
 
+
+fn new_node (start:uint) -> Box<Node> {
+    box Node {
+        _type: "".to_string(),
+        start: start,
+        end: 0,
+
+        sourceFile: "".to_string(),
+        range: vec![],
+        body: None,
+        bodylist: vec![],
+        label: None,
+        test: None,
+        declaration: None,
+        source: None,
+        specifiers: vec![],
+        consequent: None,
+        consequents: vec![],
+        defaults: vec![],
+        alternate: None,
+        argument: None,
+        discriminant: None,
+        cases: vec![],
+        block:None,
+        handler:None,
+        guardedHandlers: vec![],
+        finalizer:None,
+        object:None,
+        expression:None,
+        init:None,
+        update:None,
+        left:None,
+        right:None,
+        declarations: vec![],
+        kind: "".to_string(),
+        expressions: vec![],
+        prefix:false,
+        property:None,
+        computed:false,
+        callee:None,
+        arguments: vec![],
+        key:None,
+        value: JS_NULL,
+        raw:"".to_string(),
+        elements: vec![],
+        properties: vec![],
+        id:None,
+        param:None,
+        params: vec![],
+        blocks: vec![],
+        rest:None,
+        guard:None,
+        name:"".to_string(),
+        generator:false,
+        of:false,
+        quasi: None,
+        quasis: vec![],
+        tag: None,
+        delegate:false,
+        _default:false,
+        _static:false,
+        _operator:"".to_string(),
+        filter: None,
+        method:false,
+        tail:false,
+        shorthand:false,
+        superClass: None,
+    }
+}
+
 impl AcornParser {
     pub fn new() -> AcornParser {
         return AcornParser {
@@ -618,37 +688,40 @@ break;
     self.tokPos+= 1;
     let mut mods:String = self.readWord1(); 
     if (mods.len() > 0 && !test(regex_11, mods.as_slice())) {
-raise(start, "Invalid regular expression flag");
-}
+        raise(start, "Invalid regular expression flag");
+    }
     let mut value = RegExp(content, mods.as_slice()); 
      if (value.len() == 0) { raise(start, "Error parsing regular expression."); } 
     return self.finishToken(_regexp, JS_REGEXP(value.to_string()));
 }
+
 fn readInt(&mut self, radix:int, len:int) -> f64 {
     let mut start:int = self.tokPos as int;  let mut total:f64 = 0f64; 
     let mut i:int = 0; ;
-while len == 0 || i < len{{
+    while len == 0 || i < len{
         let mut code:int = charCodeAt(get_input(), self.tokPos) as int;
         let mut val:f64 = 0.0; 
         if (code >= 97) {
-val = (code - 97 + 10) as f64;
-} else {if (code >= 65) {
-val = (code - 65 + 10) as f64;
-} else {if (code >= 48 && code <= 57) {
-val = (code - 48) as f64;
-} else {val = Infinity;}}}
+            val = (code - 97 + 10) as f64;
+        } else if (code >= 65) {
+            val = (code - 65 + 10) as f64;
+        } else if (code >= 48 && code <= 57) {
+            val = (code - 48) as f64;
+        } else {
+            val = Infinity;
+        }
         if (val >= radix as f64) {
-break;
-}
-        self.tokPos+= 1;
+            break;
+        }
+        self.tokPos += 1;
         total = total * (radix as f64) + val;
-    };
-}
+    }
     if (self.tokPos==start as uint || (len > 0 && self.tokPos as int - start !=len)) {
-return NaN;
-}
+        return NaN;
+    }
     return total;
 }
+
 fn readRadixNumber(&mut self, radix:int) -> int {
     self.tokPos += 2;
     let mut val:f64 = self.readInt(radix, 0); 
@@ -908,25 +981,22 @@ fn setStrict(&mut self, strct:bool) -> int {
     
 
 
-
-    
     
 
 
 fn startNode(&mut self) -> Box<Node> {
-    let mut node:Box<Node> = (*nullptr).clone(); 
+    let mut node:Box<Node> = new_node(self.tokStart as uint);
     
     if (self.options.directSourceFile.len() > 0) {
-node.sourceFile = self.options.directSourceFile.to_string();
-}
+        node.sourceFile = self.options.directSourceFile.to_string();
+    }
     if (self.options.ranges) {
-node.range = vec![self.tokStart, 0];
-}
+        node.range = vec![self.tokStart, 0];
+    }
     return node;
 }
 fn startNodeFrom(&mut self, other:&Box<Node>) -> Box<Node> {
-    let mut node:Box<Node> = (*nullptr).clone(); 
-    node.start = other.start;
+    let mut node:Box<Node> = new_node(other.start);
     
     if (self.options.ranges) {
 node.range = vec![other.range[0], 0];

@@ -4,10 +4,10 @@ var fs = require('fs');
 var exec = require('child_process').exec;
 
 var input = fs.readFileSync(__dirname + '/input.js', 'utf-8');
-var output = JSON.parse(JSON.stringify(acorn.parse(input)).replace(/\d+/g, '0'));
+var output = JSON.parse(JSON.stringify(acorn.parse(input)))
 
 exec('./target/hello_world', function (err, stdout, stderr) {
-	var compare = JSON.parse(stdout.replace(/_type/g, 'type').replace(/\d+/g, '0'));
+	var compare = JSON.parse(stdout.replace(/_type/g, 'type'))
 	console.log(_.isEqual(output, compare));
 	console.error('\nacorn:', JSON.stringify(output));
 	console.error('\nrust: ', JSON.stringify(compare));

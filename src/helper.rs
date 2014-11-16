@@ -444,12 +444,12 @@ pub fn isNaN (arg:f64) -> bool {
 	return arg.is_nan();
 }
 
-pub fn parseInt (arg:&str, base:int) -> int {
-	return 0;
+pub fn parseInt (arg:&str, base:int) -> i32 {
+	return from_str::<i32>(arg).unwrap();
 }
 
 pub fn parseFloat (arg:&str) -> f64 {
-	return 0f64;
+	return from_str::<f64>(arg).unwrap();
 }
 
 pub fn test (regex: |arg:&str| -> bool, val:&str ) -> bool {

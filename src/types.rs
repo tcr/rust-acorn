@@ -98,6 +98,9 @@ pub struct Node {
 }
 
 #[deriving(Encodable)]
+pub struct DummyNode;
+
+#[deriving(Encodable)]
 pub struct ProgramNode {
     pub _type:&'static str,
     pub start:uint,
@@ -231,6 +234,13 @@ pub struct LiteralStringNode {
 }
 
 #[deriving(Encodable)]
+pub struct ThisExpressionNode {
+    pub _type:&'static str,
+    pub start:uint,
+    pub end:uint,
+}
+
+#[deriving(Encodable)]
 pub struct LiteralNumberNode {
     pub _type:&'static str,
     pub start:uint,
@@ -241,15 +251,12 @@ pub struct LiteralNumberNode {
 }
 
 #[deriving(Encodable)]
-pub struct LiteralRegexpNodeValue;
-
-#[deriving(Encodable)]
 pub struct LiteralRegexpNode {
     pub _type:&'static str,
     pub start:uint,
     pub end:uint,
     
-    pub value:LiteralRegexpNodeValue,
+    pub value:DummyNode,
     pub raw:String,
 }
 
@@ -317,6 +324,13 @@ impl <S: Encoder<E>, E> Encodable<S, E> for Node {
                     params: self.params.clone(),
                     body: self.body.clone(),
                     expression: self.isExpression,
+                }.encode(encoder)
+            },
+            "ThisExpression" => {
+                ThisExpressionNode {
+                    _type: "ThisExpression",
+                    start: self.start,
+                    end: self.end,
                 }.encode(encoder)
             },
             "ConditionalExpression" => {
@@ -434,7 +448,7 @@ impl <S: Encoder<E>, E> Encodable<S, E> for Node {
                         start: self.start,
                         end: self.end,
 
-                        value: LiteralRegexpNodeValue,
+                        value: DummyNode,
                         raw: self.raw.clone(),
                     }.encode(encoder),
                     JS_DOUBLE(s) => LiteralNumberNode {

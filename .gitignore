@@ -2,3 +2,5 @@ target
 x
 node_modules
 Cargo.lock
+acorn
+input.js

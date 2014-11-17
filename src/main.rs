@@ -21,6 +21,7 @@ extern crate serialize;
 use std::str;
 use std::char;
 use std::io;
+use std::os;
 use serialize::{json, Encodable};
 
 mod acorn;
@@ -87,12 +88,21 @@ fn isIdentifierChar(code:int) -> bool {
 }
 
 fn main() {
-    writeln!(io::stderr(), "Hello, world!");
-    let mut a = acorn::AcornParser::new();
+    let args:Vec<String> = os::args();
 
-    let contents = io::File::open(&Path::new("input.js")).read_to_string().unwrap();
+    if args.len() < 2 {
+        panic!("Usage: acorn filepath.js OR acorn -")
+    }
+
+    // Collect our input.
+    let contents = if args[1].as_slice() == "-" {
+        io::stdin().read_to_string()
+    } else {
+        io::File::open(&Path::new(&args[1])).read_to_string()
+    }.unwrap();
+
+    let mut a = acorn::AcornParser::new();
     let result = a.parse(&contents.to_string());
-    // println!("{}", result);
-    // let output = helper::ProgramNode::inherit(&*result);
+
     println!("{}", json::encode(&*result));
 }

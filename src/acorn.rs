@@ -162,14 +162,14 @@ pub struct AcornParser {
     tokPos:uint,
     tokStart:int,
     tokEnd:int,
-    tokStartLoc:int,
-    tokEndLoc:int,
+    tokStartLoc:Position,
+    tokEndLoc:Position,
     tokRegexpAllowed:bool,
     tokCurLine:uint,
     tokLineStart:uint,
     lastStart:int,
     lastEnd:int,
-    lastEndLoc:int,
+    lastEndLoc:Position,
     inFunction:bool,
     inGenerator:bool,
     _strict:bool,
@@ -310,6 +310,7 @@ fn new_node (start:uint) -> Box<Node> {
         _type: "".to_string(),
         start: start,
         end: 0,
+        loc: None,
 
         sourceFile: "".to_string(),
         range: vec![],
@@ -388,14 +389,14 @@ impl AcornParser {
             tokPos: 0,
             tokStart: 0i,
             tokEnd: 0i,
-            tokStartLoc: 0i,
-            tokEndLoc: 0i,
+            tokStartLoc: Position { line:0, column: 0 },
+            tokEndLoc: Position { line:0, column: 0 },
             tokRegexpAllowed: false,
             tokCurLine: 0,
             tokLineStart: 0,
             lastStart: 0i,
             lastEnd: 0i,
-            lastEndLoc: 0i,
+            lastEndLoc: Position { line:0, column:0 },
             inFunction: false,
             inGenerator: false,
             _strict: false,
@@ -432,9 +433,17 @@ fn initTokenState(&mut self) -> int {
     return 0;
 }
 
+fn cur_position(&mut self) -> Position {
+    Position {
+        line: self.tokCurLine,
+        column: self.tokPos - self.tokLineStart,
+    }
+}
+
 fn finishToken(&mut self, _type :keyword_t, val:js_any_type) -> int {
     self.tokEnd = self.tokPos as int;
-    
+    self.tokEndLoc = self.cur_position();
+    // println!("ok {}", self.tokCurLine);
     self.tokType = Some(_type);
     if (_type !=_bquote || self.inTemplate) {
         self.skipSpace();
@@ -466,60 +475,43 @@ fn skipLineComment(&mut self) {
 }
 
 fn skipSpace(&mut self) {
-    while self.tokPos < get_input().len(){
-{
+    while self.tokPos < get_input().len() {{
         let mut ch:int = charCodeAt(get_input(), self.tokPos) as int;
-        if (ch==32) {
-{
+        if (ch==32) {{
             self.tokPos+= 1;
-        }
-} else {if (ch==13) {
-{
+        }} else {if (ch==13) {{
             self.tokPos+= 1;
             let mut next:int = charCodeAt(get_input(), self.tokPos) as int; 
-            if (next==10) {
-{
+            if (next==10) {{
                 self.tokPos+= 1;
-            }
-}
-            
-        }
-} else {if (ch==10 || ch==8232 || ch==8233) {
-{
-            self.tokPos+= 1;
-            
-        }
-} else {if (ch > 8 && ch < 14) {
-{
-            self.tokPos+= 1;
-        }
-} else {if (ch==47) {
-{
+            }}
+            self.tokCurLine += 1;
+            self.tokLineStart = self.tokPos;
+        }} else {if (ch==10 || ch==8232 || ch==8233) {{
+            self.tokPos += 1;
+            self.tokCurLine += 1;
+            self.tokLineStart = self.tokPos;
+        }} else {if (ch > 8 && ch < 14) {{
+            self.tokPos += 1;
+        }} else {if (ch==47) {{
             let mut next:int = charCodeAt(get_input(), self.tokPos + 1) as int; 
-            if (next==42) {
-{
+            if (next==42) {{
                 self.skipBlockComment();
-            }
-} else {if (next==47) {
-{
+            }} else {if (next==47) {{
                 self.skipLineComment();
-            }
-} else {break;}}
-        }
-} else {if (ch==160) {
-{
+            }} else {
+                break;
+            }}
+        }} else {if (ch==160) {{
             self.tokPos+= 1;
-        }
-} else {if (ch >= 5760 && test(nonASCIIwhitespace, fromCharCode(ch as u32).as_slice())) {
-{
+        }} else {if (ch >= 5760 && test(nonASCIIwhitespace, fromCharCode(ch as u32).as_slice())) {{
             self.tokPos+= 1;
-        }
-} else {{
+        }} else {{
             break;
         }}}}}}}}
-    }
+    }}
 }
-}
+
 fn readToken_dot(&mut self) -> int {
     let mut next:int = charCodeAt(get_input(), self.tokPos + 1) as int; 
     if (next >= 48 && next <= 57) {
@@ -756,12 +748,15 @@ _ => { } }
 }
 fn readToken(&mut self, forceRegexp:bool) -> int {
     if (!forceRegexp) {
-self.tokStart = self.tokPos as int;
-} else {self.tokPos = self.tokStart as uint + 1;}
+        self.tokStart = self.tokPos as int;
+    } else {
+        self.tokPos = self.tokStart as uint + 1;
+    }
+    self.tokStartLoc = self.cur_position();
     
     if (forceRegexp) {
-return self.readRegexp();
-}
+        return self.readRegexp();
+    }
     if (self.tokPos >= get_input().len()) {
 return self.finishToken(_eof, JS_NULL);
 }
@@ -1105,7 +1100,10 @@ fn setStrict(&mut self, strct:bool) -> int {
 
 fn startNode(&mut self) -> Box<Node> {
     let mut node:Box<Node> = new_node(self.tokStart as uint);
-    
+    node.loc = Some(SourceLocation {
+        start: self.tokStartLoc.clone(),
+        end: self.tokStartLoc.clone(),
+    });
     if (self.options.directSourceFile.len() > 0) {
         node.sourceFile = self.options.directSourceFile.to_string();
     }
@@ -1114,24 +1112,29 @@ fn startNode(&mut self) -> Box<Node> {
     }
     return node;
 }
+
 fn startNodeFrom(&mut self, other:&Box<Node>) -> Box<Node> {
-    let mut node:Box<Node> = new_node(other.start);
-    
+    let mut node:Box<Node> = new_node(other.start);    
     if (self.options.ranges) {
-node.range = vec![other.range[0], 0];
-}
+        node.range = vec![other.range[0], 0];
+    }
     return node;
 }
+
 fn enterNode<'a>(&mut self, node:&'a mut Box<Node>, _type :&str) -> &'a mut Box<Node> {
     node._type = _type.to_string();
     return node;
 }
+
 fn finishNode(&mut self, mut node:Box<Node>) -> Box<Node> {
     node.end = self.lastEnd as uint;
-    
+    match node.loc {
+        Some(ref mut p) => p.end = self.lastEndLoc.clone(),
+        _ => { }
+    };
     if (self.options.ranges) {
-node.range[1] = self.lastEnd;
-}
+        node.range[1] = self.lastEnd;
+    }
      jsparse_callback_close(convert_to_Node_C(&mut node));
     return node;
 }
@@ -1177,7 +1180,7 @@ fn checkSpreadAssign<'a>(&'a mut self, node:&'a mut Box<Node>) -> int {
 fn parseTopLevel(&mut self, mut program:Option<Box<Node>>) -> Box<Node> {
     self.lastEnd = self.tokPos as int;
     self.lastStart = self.tokPos as int;
-    writeln!(io::stderr(), "hey");
+    self.lastEndLoc = self.cur_position();
     
     self._strict = false;
     self.inGenerator = false;
@@ -1201,6 +1204,7 @@ fn parseTopLevel(&mut self, mut program:Option<Box<Node>>) -> Box<Node> {
     writeln!(io::stderr(), "ho");
     self.enterNode(&mut node, "Program");
     writeln!(io::stderr(), "done");
+    // println!("~~~~~arseTopLvl {}", self.tokCurLine);
     return self.finishNode(node);
 }
 
@@ -1829,7 +1833,8 @@ fn parseExprAtom(&mut self) -> Box<Node> {
             self.enterNode(node, "Literal");
             return self.finishNode(node.clone());
         },
-        _parenL => {let mut tokStartLoc1:int = self.tokStartLoc; 
+        _parenL => {
+            let mut tokStartLoc1:Position = self.tokStartLoc; 
             let mut tokStart1:int = self.tokStart; 
             let mut val:Box<Node> = (*nullptr).clone();
             let mut exprList:Vec<Box<Node>> = Vec::new(); ;

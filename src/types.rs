@@ -32,7 +32,7 @@ pub struct Node {
     pub _type:String,
     pub start:uint,
     pub end:uint,
-    // SourceLocation* loc;
+    pub loc:Option<SourceLocation>,
 
     pub sourceFile:String,
     pub range:Vec<int>,
@@ -103,8 +103,7 @@ pub struct DummyNode;
 #[deriving(Encodable)]
 pub struct ProgramNode {
     pub _type:&'static str,
-    pub start:uint,
-    pub end:uint,
+    pub loc:Option<SourceLocation>,
 
     pub body:Vec<Box<Node>>,
 }
@@ -112,8 +111,7 @@ pub struct ProgramNode {
 #[deriving(Encodable)]
 pub struct FunctionDeclarationNode {
     pub _type:&'static str,
-    pub start:uint,
-    pub end:uint,
+    pub loc:Option<SourceLocation>,
 
     pub id:Option<Box<Node>>,
     pub params:Vec<Box<Node>>,
@@ -124,8 +122,7 @@ pub struct FunctionDeclarationNode {
 #[deriving(Encodable)]
 pub struct FunctionExpressionNode {
     pub _type:&'static str,
-    pub start:uint,
-    pub end:uint,
+    pub loc:Option<SourceLocation>,
 
     pub id:Option<Box<Node>>,
     pub params:Vec<Box<Node>>,
@@ -136,8 +133,7 @@ pub struct FunctionExpressionNode {
 #[deriving(Encodable)]
 pub struct ExpressionStatementNode {
     pub _type:&'static str,
-    pub start:uint,
-    pub end:uint,
+    pub loc:Option<SourceLocation>,
 
     pub expression:Option<Box<Node>>,
 }
@@ -145,8 +141,7 @@ pub struct ExpressionStatementNode {
 #[deriving(Encodable)]
 pub struct WhileStatementNode {
     pub _type:&'static str,
-    pub start:uint,
-    pub end:uint,
+    pub loc:Option<SourceLocation>,
 
     pub test:Option<Box<Node>>,
     pub body:Option<Box<Node>>,
@@ -155,8 +150,7 @@ pub struct WhileStatementNode {
 #[deriving(Encodable)]
 pub struct BlockStatementNode {
     pub _type:&'static str,
-    pub start:uint,
-    pub end:uint,
+    pub loc:Option<SourceLocation>,
 
     pub body:Vec<Box<Node>>,
 }
@@ -164,8 +158,7 @@ pub struct BlockStatementNode {
 #[deriving(Encodable)]
 pub struct MemberExpressionNode {
     pub _type:&'static str,
-    pub start:uint,
-    pub end:uint,
+    pub loc:Option<SourceLocation>,
 
     pub object:Option<Box<Node>>,
     pub property:Option<Box<Node>>,
@@ -175,8 +168,7 @@ pub struct MemberExpressionNode {
 #[deriving(Encodable)]
 pub struct ConditionalExpressionNode {
     pub _type:&'static str,
-    pub start:uint,
-    pub end:uint,
+    pub loc:Option<SourceLocation>,
 
     pub test:Option<Box<Node>>,
     pub consequent:Option<Box<Node>>,
@@ -186,8 +178,7 @@ pub struct ConditionalExpressionNode {
 #[deriving(Encodable)]
 pub struct BinaryExpressionNode {
     pub _type:&'static str,
-    pub start:uint,
-    pub end:uint,
+    pub loc:Option<SourceLocation>,
     
     pub left:Option<Box<Node>>,
     pub operator:String,
@@ -197,8 +188,7 @@ pub struct BinaryExpressionNode {
 #[deriving(Encodable)]
 pub struct CallExpressionNode {
     pub _type:&'static str,
-    pub start:uint,
-    pub end:uint,
+    pub loc:Option<SourceLocation>,
     
     pub callee:Option<Box<Node>>,
     pub arguments:Vec<Box<Node>>,
@@ -207,8 +197,7 @@ pub struct CallExpressionNode {
 #[deriving(Encodable)]
 pub struct IdentifierNode {
     pub _type:&'static str,
-    pub start:uint,
-    pub end:uint,
+    pub loc:Option<SourceLocation>,
     
     pub name:String,
 }
@@ -216,8 +205,7 @@ pub struct IdentifierNode {
 #[deriving(Encodable)]
 pub struct LiteralBooleanNode {
     pub _type:&'static str,
-    pub start:uint,
-    pub end:uint,
+    pub loc:Option<SourceLocation>,
     
     pub value:bool,
     pub raw:String,
@@ -226,8 +214,7 @@ pub struct LiteralBooleanNode {
 #[deriving(Encodable)]
 pub struct LiteralStringNode {
     pub _type:&'static str,
-    pub start:uint,
-    pub end:uint,
+    pub loc:Option<SourceLocation>,
     
     pub value:String,
     pub raw:String,
@@ -236,15 +223,13 @@ pub struct LiteralStringNode {
 #[deriving(Encodable)]
 pub struct ThisExpressionNode {
     pub _type:&'static str,
-    pub start:uint,
-    pub end:uint,
+    pub loc:Option<SourceLocation>,
 }
 
 #[deriving(Encodable)]
 pub struct LiteralNumberNode {
     pub _type:&'static str,
-    pub start:uint,
-    pub end:uint,
+    pub loc:Option<SourceLocation>,
     
     pub value:f64,
     pub raw:String,
@@ -253,8 +238,7 @@ pub struct LiteralNumberNode {
 #[deriving(Encodable)]
 pub struct LiteralRegexpNode {
     pub _type:&'static str,
-    pub start:uint,
-    pub end:uint,
+    pub loc:Option<SourceLocation>,
     
     pub value:DummyNode,
     pub raw:String,
@@ -263,8 +247,7 @@ pub struct LiteralRegexpNode {
 #[deriving(Encodable)]
 pub struct LiteralNullNode {
     pub _type:&'static str,
-    pub start:uint,
-    pub end:uint,
+    pub loc:Option<SourceLocation>,
     
     pub value:Option<bool>,
     pub raw:String,
@@ -273,8 +256,7 @@ pub struct LiteralNullNode {
 #[deriving(Encodable)]
 pub struct VariableDeclarationNode {
     pub _type:&'static str,
-    pub start:uint,
-    pub end:uint,
+    pub loc:Option<SourceLocation>,
     
     pub declarations:Vec<Box<Node>>,
     pub kind:String,
@@ -283,8 +265,7 @@ pub struct VariableDeclarationNode {
 #[deriving(Encodable)]
 pub struct VariableDeclaratorNode {
     pub _type:&'static str,
-    pub start:uint,
-    pub end:uint,
+    pub loc:Option<SourceLocation>,
     
     pub id:Option<Box<Node>>,
     pub init:Option<Box<Node>>,
@@ -296,8 +277,7 @@ impl <S: Encoder<E>, E> Encodable<S, E> for Node {
             "Program" => {
                 ProgramNode {
                     _type: "Program",
-                    start: self.start,
-                    end: self.end,
+                    loc: self.loc.clone(),
 
                     body: self.bodylist.clone()
                 }.encode(encoder)
@@ -305,8 +285,7 @@ impl <S: Encoder<E>, E> Encodable<S, E> for Node {
             "FunctionDeclaration" => {
                 FunctionDeclarationNode {
                     _type: "FunctionDeclaration",
-                    start: self.start,
-                    end: self.end,
+                    loc: self.loc.clone(),
 
                     id: self.id.clone(),
                     params: self.params.clone(),
@@ -317,8 +296,7 @@ impl <S: Encoder<E>, E> Encodable<S, E> for Node {
             "FunctionExpression" => {
                 FunctionExpressionNode {
                     _type: "FunctionExpression",
-                    start: self.start,
-                    end: self.end,
+                    loc: self.loc.clone(),
 
                     id: self.id.clone(),
                     params: self.params.clone(),
@@ -329,15 +307,13 @@ impl <S: Encoder<E>, E> Encodable<S, E> for Node {
             "ThisExpression" => {
                 ThisExpressionNode {
                     _type: "ThisExpression",
-                    start: self.start,
-                    end: self.end,
+                    loc: self.loc.clone(),
                 }.encode(encoder)
             },
             "ConditionalExpression" => {
                 ConditionalExpressionNode {
                     _type: "ConditionalExpression",
-                    start: self.start,
-                    end: self.end,
+                    loc: self.loc.clone(),
 
                     test: self.test.clone(),
                     consequent: self.consequent.clone(),
@@ -347,8 +323,7 @@ impl <S: Encoder<E>, E> Encodable<S, E> for Node {
             "VariableDeclaration" => {
                 VariableDeclarationNode {
                     _type: "VariableDeclaration",
-                    start: self.start,
-                    end: self.end,
+                    loc: self.loc.clone(),
 
                     declarations: self.declarations.clone(),
                     kind: self.kind.clone(),
@@ -357,8 +332,7 @@ impl <S: Encoder<E>, E> Encodable<S, E> for Node {
             "VariableDeclarator" => {
                 VariableDeclaratorNode {
                     _type: "VariableDeclarator",
-                    start: self.start,
-                    end: self.end,
+                    loc: self.loc.clone(),
 
                     id: self.id.clone(),
                     init: self.init.clone(),
@@ -367,8 +341,7 @@ impl <S: Encoder<E>, E> Encodable<S, E> for Node {
             "BlockStatement" => {
                 BlockStatementNode {
                     _type: "BlockStatement",
-                    start: self.start,
-                    end: self.end,
+                    loc: self.loc.clone(),
 
                     body: self.bodylist.clone(),
                 }.encode(encoder)
@@ -376,8 +349,7 @@ impl <S: Encoder<E>, E> Encodable<S, E> for Node {
             "ExpressionStatement" => {
                 ExpressionStatementNode {
                     _type: "ExpressionStatement",
-                    start: self.start,
-                    end: self.end,
+                    loc: self.loc.clone(),
 
                     expression: self.expression.clone(),
                 }.encode(encoder)
@@ -385,8 +357,7 @@ impl <S: Encoder<E>, E> Encodable<S, E> for Node {
             "WhileStatement" => {
                 WhileStatementNode {
                     _type: "WhileStatement",
-                    start: self.start,
-                    end: self.end,
+                    loc: self.loc.clone(),
 
                     test: self.test.clone(),
                     body: self.body.clone(),
@@ -395,8 +366,7 @@ impl <S: Encoder<E>, E> Encodable<S, E> for Node {
             "MemberExpression" => {
                 MemberExpressionNode {
                     _type: "MemberExpression",
-                    start: self.start,
-                    end: self.end,
+                    loc: self.loc.clone(),
 
                     object: self.object.clone(),
                     property: self.property.clone(),
@@ -406,8 +376,7 @@ impl <S: Encoder<E>, E> Encodable<S, E> for Node {
             "BinaryExpression" => {
                 BinaryExpressionNode {
                     _type: "BinaryExpression",
-                    start: self.start,
-                    end: self.end,
+                    loc: self.loc.clone(),
 
                     left: self.left.clone(),
                     operator: self._operator.clone(),
@@ -417,8 +386,7 @@ impl <S: Encoder<E>, E> Encodable<S, E> for Node {
             "CallExpression" => {
                 CallExpressionNode {
                     _type: "CallExpression",
-                    start: self.start,
-                    end: self.end,
+                    loc: self.loc.clone(),
 
                     callee: self.callee.clone(),
                     arguments: self.arguments.clone(),
@@ -427,8 +395,7 @@ impl <S: Encoder<E>, E> Encodable<S, E> for Node {
             "Identifier" => {
                 IdentifierNode {
                     _type: "Identifier",
-                    start: self.start,
-                    end: self.end,
+                    loc: self.loc.clone(),
 
                     name: self.name.clone(),
                 }.encode(encoder)
@@ -437,40 +404,35 @@ impl <S: Encoder<E>, E> Encodable<S, E> for Node {
                 match self.value.clone() {
                     JS_STRING(s) => LiteralStringNode {
                         _type: "Literal",
-                        start: self.start,
-                        end: self.end,
+                        loc: self.loc.clone(),
 
                         value: s.clone(),
                         raw: self.raw.clone(),
                     }.encode(encoder),
                     JS_REGEXP(s) => LiteralRegexpNode {
                         _type: "Literal",
-                        start: self.start,
-                        end: self.end,
+                        loc: self.loc.clone(),
 
                         value: DummyNode,
                         raw: self.raw.clone(),
                     }.encode(encoder),
                     JS_DOUBLE(s) => LiteralNumberNode {
                         _type: "Literal",
-                        start: self.start,
-                        end: self.end,
+                        loc: self.loc.clone(),
 
                         value: s,
                         raw: self.raw.clone(),
                     }.encode(encoder),
                     JS_BOOLEAN(s) => LiteralBooleanNode {
                         _type: "Literal",
-                        start: self.start,
-                        end: self.end,
+                        loc: self.loc.clone(),
 
                         value: s,
                         raw: self.raw.clone(),
                     }.encode(encoder),
                     JS_NULL => LiteralNullNode {
                         _type: "Literal",
-                        start: self.start,
-                        end: self.end,
+                        loc: self.loc.clone(),
 
                         value: None,
                         raw: self.raw.clone(),
@@ -533,13 +495,23 @@ pub enum ATOM_VALUE {
     ATOM_FALSE,
 }
 
-#[deriving(Clone)]
+#[deriving(Clone, Show, Encodable)]
 pub struct label_t {
     pub kind:String,
     pub name:String,
 }
 
+#[deriving(Clone, Show, Encodable)]
+pub struct Position {
+    pub line:uint,
+    pub column:uint,
+}
 
+#[deriving(Clone, Show, Encodable)]
+pub struct SourceLocation {
+    pub start:Position,
+    pub end:Position,
+}
 
 
 lazy_static! {
@@ -547,6 +519,7 @@ lazy_static! {
         _type: "".to_string(),
         start: 1,
         end: -1,
+        loc: None,
 
         sourceFile: "".to_string(),
         range: vec![],

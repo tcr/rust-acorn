@@ -1,7 +1,7 @@
 .PHONY: all
 
 all:
-	cargo build
+	@cargo build
 
 test: all
-	node test.js
+	@node test/tests.js

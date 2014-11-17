@@ -1,23 +1,23 @@
 {
-  "name": "acorn.rs",
+  "name": "rust-acorn",
   "version": "1.0.0",
-  "description": "A port of [Acorn.js](http://marijnhaverbeke.nl/acorn/) to Rust. It's half-automated and wicked janky! Be careful.",
+  "description": "A port of Acorn.js to Rust.",
   "main": "input.js",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "repository": {
     "type": "git",
-    "url": "https://github.com/tcr/acorn.rs.git"
+    "url": "https://github.com/tcr/rust-acorn.git"
   },
   "author": "",
   "license": "ISC",
   "bugs": {
-    "url": "https://github.com/tcr/acorn.rs/issues"
+    "url": "https://github.com/tcr/rust-acorn/issues"
   },
-  "homepage": "https://github.com/tcr/acorn.rs",
+  "homepage": "https://github.com/tcr/rust-acorn",
   "dependencies": {
-    "acorn": "^0.9.0",
+    "acorn": "git+https://github.com/marijnh/acorn#ef045b",
     "underscore": "^1.7.0"
   }
 }

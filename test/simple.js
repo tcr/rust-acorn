@@ -4,13 +4,16 @@ var _ = require('underscore');
 var fs = require('fs');
 var exec = require('child_process').exec;
 
-var input = fs.readFileSync(__dirname + '/input.js', 'utf-8');
-var output = JSON.parse(JSON.stringify(acorn.parse(input)).replace(/_type/g, 'type'))
+var input = fs.readFileSync(__dirname + '/../input.js', 'utf-8');
+var output = JSON.parse(JSON.stringify(acorn.parse(input, {
+	locations: true,
+	ranges: false,
+})).replace(/_type/g, 'type'))
 
 // var tab = '  '
 var tab = null
 
-exec('./target/acorn', function (err, stdout, stderr) {
+exec(__dirname + '/../target/acorn ' + __dirname + '/../input.js', function (err, stdout, stderr) {
 	var compare = JSON.parse(stdout.replace(/_type/g, 'type'))
 	console.log(_.isEqual(output, compare));
 

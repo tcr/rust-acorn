@@ -1,5 +1,1 @@
-function a () {
-	while (true) {
-		console.log(true);
-	}
-}
+var acorn = require('acorn');

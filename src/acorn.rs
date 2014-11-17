@@ -427,17 +427,19 @@ fn initTokenState(&mut self) -> int {
     self.skipSpace();
     return 0;
 }
+
 fn finishToken(&mut self, _type :keyword_t, val:js_any_type) -> int {
     self.tokEnd = self.tokPos as int;
     
     self.tokType = Some(_type);
     if (_type !=_bquote || self.inTemplate) {
-self.skipSpace();
-}
+        self.skipSpace();
+    }
     self.tokVal = Some(val);
     self.tokRegexpAllowed = _type.beforeExpr;
     return 0;
 }
+
 fn skipBlockComment(&mut self) -> int {
     self.tokPos += 2;
     let mut start:int = self.tokPos as int;

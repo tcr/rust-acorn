@@ -217,6 +217,26 @@ pub struct LiteralNumberNode {
     pub raw:String,
 }
 
+#[deriving(Encodable)]
+pub struct VariableDeclarationNode {
+    pub _type:&'static str,
+    pub start:uint,
+    pub end:uint,
+    
+    pub declarations:Vec<Box<Node>>,
+    pub kind:String,
+}
+
+#[deriving(Encodable)]
+pub struct VariableDeclaratorNode {
+    pub _type:&'static str,
+    pub start:uint,
+    pub end:uint,
+    
+    pub id:Option<Box<Node>>,
+    pub init:Option<Box<Node>>,
+}
+
 impl <S: Encoder<E>, E> Encodable<S, E> for Node {
     fn encode(&self, encoder: &mut S) -> Result<(), E> {
         match self._type.as_slice() {
@@ -239,6 +259,26 @@ impl <S: Encoder<E>, E> Encodable<S, E> for Node {
                     params: self.params.clone(),
                     body: self.body.clone(),
                     expression: self.isExpression,
+                }.encode(encoder)
+            },
+            "VariableDeclaration" => {
+                VariableDeclarationNode {
+                    _type: "VariableDeclaration",
+                    start: self.start,
+                    end: self.end,
+
+                    declarations: self.declarations.clone(),
+                    kind: self.kind.clone(),
+                }.encode(encoder)
+            },
+            "VariableDeclarator" => {
+                VariableDeclaratorNode {
+                    _type: "VariableDeclarator",
+                    start: self.start,
+                    end: self.end,
+
+                    id: self.id.clone(),
+                    init: self.init.clone(),
                 }.encode(encoder)
             },
             "BlockStatement" => {

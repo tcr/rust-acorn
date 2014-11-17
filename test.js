@@ -6,6 +6,7 @@ var exec = require('child_process').exec;
 var input = fs.readFileSync(__dirname + '/input.js', 'utf-8');
 var output = JSON.parse(JSON.stringify(acorn.parse(input)))
 
+// var tab = '  '
 var tab = null
 
 exec('./target/acorn', function (err, stdout, stderr) {

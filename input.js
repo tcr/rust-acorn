@@ -1,3 +1,5 @@
-while (true) {
-	console.log(true);
+function a () {
+	while (true) {
+		console.log(true);
+	}
 }

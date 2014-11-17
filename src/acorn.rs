@@ -9,6 +9,8 @@ use serialize::json::ToJson;
 use serialize::json;
 
 
+// JS primitives. TODO: simplify, make generic
+
 pub fn toString (arg:&str) -> &str {
     return arg;
 }
@@ -54,8 +56,6 @@ pub fn raise (start:int, message:&str){
 pub fn indexOf(arg:&str, needle:&str, start:int) -> int {
     return -1;
 }
-
-// what
 
 pub fn setOptions (arg:options_t) {
 }
@@ -128,6 +128,8 @@ pub fn RegExp(content:&str, mods:&str) -> String {
 pub static NaN:f64 = f64::NAN;
 pub static Infinity:f64 = f64::INFINITY;
 
+// Regexes and string matching
+
 fn predicate_0(arg:&str) -> bool { return arg == "abstract" || arg == "boolean" || arg == "byte" || arg == "char" || arg == "class" || arg == "double" || arg == "enum" || arg == "export" || arg == "extends" || arg == "final" || arg == "float" || arg == "goto" || arg == "implements" || arg == "import" || arg == "int" || arg == "interface" || arg == "long" || arg == "native" || arg == "package" || arg == "private" || arg == "protected" || arg == "public" || arg == "short" || arg == "static" || arg == "super" || arg == "synchronized" || arg == "throws" || arg == "transient" || arg == "volatile"; }
 fn predicate_1(arg:&str) -> bool { return arg == "class" || arg == "enum" || arg == "extends" || arg == "super" || arg == "const" || arg == "export" || arg == "import"; }
 fn predicate_2(arg:&str) -> bool { return arg == "implements" || arg == "interface" || arg == "let" || arg == "package" || arg == "private" || arg == "protected" || arg == "public" || arg == "static" || arg == "yield"; }
@@ -144,8 +146,6 @@ fn regex_12 (arg:&str) -> bool { for c in arg.utf16_units() { match c {  0x38 | 
 fn regex_13 (arg:&str) -> bool { for c in arg.utf16_units() { match c {  0x30 ... 0x37 => { return true; }, _ => { return false;  } } }  return false; }
 
 const version:&'static str = "0.6.1";
-// static mut self.input:&'static str = "";
-// static mut inputLen:uint = 0;
 
 pub struct AcornParser {
     options:options_t,

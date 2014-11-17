@@ -1,12 +1,12 @@
 [package]
 
-name = "hello_world"
-version = "0.0.1"
-authors = [ "Your name <you@example.com>" ]
+name = "acorn"
+version = "1.0.0"
+authors = [ "Tim Cameron Ryan <tim@technical.io>" ]
 
 [[bin]]
 
-name = "hello_world"
+name = "acorn"
 
 [dependencies.lazy_static]
 

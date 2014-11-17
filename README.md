@@ -1,8 +1,10 @@
 # acorn.rs
 
-A port of [Acorn.js](http://marijnhaverbeke.nl/acorn/) to Rust. It's half-automated and wicked janky! Be careful.
+A port of [Acorn.js](http://marijnhaverbeke.nl/acorn/) to Rust. It's a half-automated translation and wicked janky! The fork is from commit ef045b971834a34e5181f8e2eeac34644e2ede41, which will eventually have to be rolled forward.
 
-To run:
+Acorn is a lightweight ECMAScript parser with support for versions 3-6. It outputs an AST equivalent to Esprima's or the Mozilla Parser AST.
+
+To test:
 
 ```
 git clone https://github.com/tcr/acorn.rs.git
@@ -12,12 +14,12 @@ cargo build
 cat input.js
 # console.log('hello world!')
 
-./target/hello_world 2>/dev/null
-# {"bodylist":[{"expression":{"callee":{"object":"console","property":"log"},"arguments":["hello world!"]}}]}
+make test
+# compares output with acorn.js
 ```
 
-Edit input.js to get a different JSON parse tree.
+Edit input.js to result in a different JSON parse tree.
 
 ## license
 
-MIT. Copyright by Marijn Haverbeke!
+MIT. Acorn.js copyright Marijn Haverbeke

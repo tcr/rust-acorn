@@ -376,34 +376,6 @@ pub struct label_t {
     pub name:String,
 }
 
-pub fn toString (arg:&str) -> &str {
-    return arg;
-}
-
-pub fn fromCharCode (i:u32) -> String {
-    return String::from_char(1, std::char::from_u32(i).unwrap());
-}
-
-pub fn fromCharCode2 (i:u32, j:u32) -> String {
-    return String::from_chars([std::char::from_u32(i).unwrap(), std::char::from_u32(j).unwrap()]);
-}
-
-pub fn push (mut nodes:Vec<Box<Node>>, node:Box<Node>) {
-    nodes.push(node);
-}
-
-pub fn charCodeAt(arg:&str, n:uint) -> int {
-    return arg.utf16_units().nth(n).unwrap() as int;
-}
-
-pub fn convert_to_Node_C (arg:&mut Box<Node>) -> &'static str {
-    return "";
-}
-
-pub fn jsparse_callback_close (arg:&str) {
-    writeln!(io::stderr(), "close: {}", arg);
-}
-
 
 
 
@@ -476,24 +448,6 @@ lazy_static! {
     };
 }
 
-pub fn ISNULL(arg:&str) -> bool {
-    return true;
-}
-
-pub fn jsparse_callback_open (arg:&str) {
-    writeln!(io::stderr(), "open: {}", arg);
-}
-
-pub fn raise (start:int, message:&str){
-    // printf("ERROR: %s %d\n", message.c_str(), start);
-    panic!("At char {} message {}", start, message);
-    // exit(1);
-}
-
-pub fn indexOf(arg:&str, needle:&str, start:int) -> int {
-    return -1;
-}
-
 #[deriving(Clone, Show, Encodable)]
 pub enum js_any_type {
     JS_NULL,
@@ -512,79 +466,6 @@ impl js_any_type {
         }
     }
 }
-
-// what
-
-pub fn setOptions (arg:options_t) {
-}
-
-pub fn isUseStrict (arg:&mut Box<Node>) -> bool {
-    false
-}
-
-pub fn toAssignable(node:Box<Node>, a:bool, b:bool) -> Box<Node>
-{
-    node
-}
-
-pub fn slice (value:&str, start:int, end:int) -> &str {
-    // TODO check negative indices
-    value.slice_chars(start as uint, end as uint)
-}
-
-pub fn exec (regex: |arg:&str| -> bool, val:&str ) -> Option<Box<Vec<String>>> {
-    return Some(box vec!["hello".to_string(), "world".to_string()]);
-}
-
-pub fn ISNOTNULL (arg:int) -> bool {
-    return false;
-}
-
-pub fn isNaN (arg:f64) -> bool {
-    return arg.is_nan();
-}
-
-pub fn parseInt (arg:&str, base:int) -> i32 {
-    return from_str::<i32>(arg).unwrap();
-}
-
-pub fn parseFloat (arg:&str) -> f64 {
-    return from_str::<f64>(arg).unwrap();
-}
-
-pub fn test (regex: |arg:&str| -> bool, val:&str ) -> bool {
-    return regex(val);
-}
-
-pub fn checkLVal(arg:&Box<Node>) {
-
-}
-
-pub fn parseTemplate() -> Box<Node> {
-    return nullptr.clone()
-}
-
-pub struct thisval {
-    pub line:uint,
-    pub column:uint,
-}
-
-pub static THIS:thisval = thisval { line: 0, column: 0 };
-
-pub fn charAt(arg:&str, n:uint) -> String {
-    return arg.slice_chars(n, n+1).to_string();
-}
-
-pub fn fakeregexp (arg:&str) -> bool {
-    return false;
-}
-
-pub fn RegExp(content:&str, mods:&str) -> String {
-    return content.to_string();
-}
-
-pub static NaN:f64 = f64::NAN;
-pub static Infinity:f64 = f64::INFINITY;
 
 pub struct TokTypes {
     pub bracketL: keyword_t,

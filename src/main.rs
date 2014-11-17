@@ -23,8 +23,8 @@ use std::char;
 use std::io;
 use serialize::{json, Encodable};
 
-mod test;
-mod helper;
+mod acorn;
+mod types;
 
 static version:&'static str = "0.6.1";
 
@@ -88,7 +88,7 @@ fn isIdentifierChar(code:int) -> bool {
 
 fn main() {
     writeln!(io::stderr(), "Hello, world!");
-    let mut a = test::AcornParser::new();
+    let mut a = acorn::AcornParser::new();
 
     let contents = io::File::open(&Path::new("input.js")).read_to_string().unwrap();
     let result = a.parse(&contents.to_string());

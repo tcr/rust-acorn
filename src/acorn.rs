@@ -75,7 +75,11 @@ pub fn slice (value:&str, start:int, end:int) -> &str {
 }
 
 pub fn exec (regex: |arg:&str| -> bool, val:&str ) -> Option<Box<Vec<String>>> {
-    return Some(box vec!["hello".to_string(), "world".to_string()]);
+    if regex(val) {
+        Some(box vec![val.to_string()])
+    } else {
+        None
+    }
 }
 
 pub fn ISNOTNULL (arg:int) -> bool {
@@ -444,25 +448,23 @@ fn skipBlockComment(&mut self) -> int {
     self.tokPos += 2;
     let mut start:int = self.tokPos as int;
     let mut end:int = indexOf(get_input(), "*/", self.tokPos as int);
-    if (end==-1) {
-raise((self.tokPos as int) - 2, "Unterminated comment");
-}
+    if end == -1 {
+        raise((self.tokPos as int) - 2, "Unterminated comment");
+    }
     self.tokPos = (end as uint) + 2;
-    
     return 0;
 }
+
 fn skipLineComment(&mut self) {
     let mut start:int = self.tokPos as int;
     self.tokPos += 2;
     let mut ch:int = charCodeAt(get_input(), self.tokPos) as int; 
     while self.tokPos < get_input().len() && ch!=10 && ch!=13 && ch!=8232 && ch!=8233{
-{
         self.tokPos+= 1;
         ch = charCodeAt(get_input(), self.tokPos) as int;
     }
 }
-    
-}
+
 fn skipSpace(&mut self) {
     while self.tokPos < get_input().len(){
 {
@@ -695,29 +697,26 @@ return true;},
                 return true;
             }
 }},
-48 => {let mut next:int = charCodeAt(get_input(), self.tokPos + 1) as int; ;
-if (next==120 || next==88) {
-{
-                self.readRadixNumber(16);
-                return true;
-            }
-};
-if (self.options.ecmaVersion >= 6) {
-{
-                if (next==111 || next==79) {
-{
-                    self.readRadixNumber(8);
-                    return true;
-                }
-}
-                if (next==98 || next==66) {
-{
-                    self.readRadixNumber(2);
-                    return true;
-                }
-}
-            }
-}},
+48 => {
+    let mut next:int = charCodeAt(get_input(), self.tokPos + 1) as int;
+
+    if next == 120 || next == 88 {{
+        self.readRadixNumber(16);
+        return true;
+    }}
+    if self.options.ecmaVersion >= 6 {{
+        if (next==111 || next==79) {{
+            self.readRadixNumber(8);
+            return true;
+        }}
+        if (next==98 || next==66) {{
+            self.readRadixNumber(2);
+            return true;
+        }}
+    }}
+    self.readNumber(false);
+    return true;
+},
 49 |
 50 |
 51 |
@@ -856,53 +855,55 @@ fn readRadixNumber(&mut self, radix:int) -> int {
     self.tokPos += 2;
     let mut val:f64 = self.readInt(radix, 0); 
     if (isNaN(val)) {
-raise(self.tokStart + 2, ("Expected number in radix ".to_string() + radix.to_string()).as_slice());
-}
+        raise(self.tokStart + 2, ("Expected number in radix ".to_string() + radix.to_string()).as_slice());
+    }
     if (isIdentifierStart(charCodeAt(get_input(), self.tokPos) as int)) {
-raise(self.tokPos as int, "Identifier directly after number");
-}
+        raise(self.tokPos as int, "Identifier directly after number");
+    }
     return self.finishToken(_num, JS_DOUBLE(val as f64));
 }
+
 fn readNumber(&mut self, startsWithDot:bool) -> int {
-    let mut start:int = self.tokPos as int;  let mut isFloat:bool = false;  let mut octal:bool = charCodeAt(get_input(), self.tokPos)==48; 
+    let mut start:int = self.tokPos as int;
+    let mut isFloat:bool = false;
+    let mut octal:bool = charCodeAt(get_input(), self.tokPos)==48; 
     if (!startsWithDot && isNaN(self.readInt(10, 0))) {
-raise(start, "Invalid number");
-}
-    if (charCodeAt(get_input(), self.tokPos)==46) {
-{
+        raise(start, "Invalid number");
+    }
+    if (charCodeAt(get_input(), self.tokPos)==46) {{
         self.tokPos+= 1;
         self.readInt(10, 0);
         isFloat = true;
-    }
-}
+    }}
     let mut next:int = charCodeAt(get_input(), self.tokPos) as int; 
-    if (next==69 || next==101) {
-{
+    if (next==69 || next==101) {{
         self.tokPos+= 1;
         next = charCodeAt(get_input(), self.tokPos) as int;
         if (next==43 || next==45) {
-self.tokPos+= 1;
-}
+            self.tokPos+= 1;
+        }
         if (isNaN(self.readInt(10, 0))) {
-raise(start, "Invalid number");
-}
+            raise(start, "Invalid number");
+        }
         isFloat = true;
-    }
-}
+    }}
     if (isIdentifierStart(charCodeAt(get_input(), self.tokPos) as int)) {
-raise(self.tokPos as int, "Identifier directly after number");
-}
+        raise(self.tokPos as int, "Identifier directly after number");
+    }
     let mut str:&str = slice(get_input(), start, self.tokPos as int);
     let mut val:f64 = 0f64; 
     if (isFloat) {
-val = parseFloat(str);
-} else {if (!octal || str.len()==1) {
-val = parseInt(str, 10) as f64;
-} else {if (test(regex_12, str) || self._strict) {
-raise(start, "Invalid number");
-} else {val = parseInt(str, 8) as f64;}}}
+        val = parseFloat(str);
+    } else {if (!octal || str.len()==1) {
+        val = parseInt(str, 10) as f64;
+    } else {if (test(regex_12, str) || self._strict) {
+        raise(start, "Invalid number");
+    } else {
+        val = parseInt(str, 8) as f64;
+    }}}
     return self.finishToken(_num, JS_DOUBLE(val));
 }
+
 fn readCodePoint(&mut self) -> String {
     let mut ch:int = charCodeAt(get_input(), self.tokPos) as int;  let mut code:int = 0i; 
     if (ch==123) {
@@ -930,106 +931,94 @@ self.expected(None);
     let mut cu2:int = ((code - 0x10000) & 1023) + 0xDC00; 
     return fromCharCode2(cu1 as u32, cu2 as u32);
 }
+
 fn readString(&mut self, quote:int) -> int {
-    if (!self.inTemplate) {
-self.tokPos+= 1;
-}
-    let mut out:String = "".to_string(); 
-    ;
-loop{{
+    if !self.inTemplate {
+        self.tokPos += 1;
+    }
+    let mut out:String = "".to_string();
+
+    loop{{
         if (self.tokPos >= get_input().len()) {
-raise(self.tokStart, "Unterminated string constant");
-}
-        let mut ch:int = charCodeAt(get_input(), self.tokPos) as int; 
-        if (self.inTemplate) {
-{
-            if (ch==96 || ch==36 && charCodeAt(get_input(), self.tokPos + 1)==123) {
-return self.finishToken(_string, JS_STRING(out.to_string()));
-}
+            raise(self.tokStart, "Unterminated string constant");
         }
-} else {if (ch==quote) {
-{
+        let mut ch:int = charCodeAt(get_input(), self.tokPos) as int; 
+        if (self.inTemplate) {{
+            if (ch==96 || ch==36 && charCodeAt(get_input(), self.tokPos + 1)==123) {
+                return self.finishToken(_string, JS_STRING(out.to_string()));
+            }
+        }} else {if (ch==quote) {{
             self.tokPos+= 1;
             return self.finishToken(_string, JS_STRING(out.to_string()));
-        }
-}}
-        if (ch==92) {
-{
-        self.tokPos+= 1;
+        }}}
+        if (ch==92) {{
+            self.tokPos+= 1;
             ch = charCodeAt(get_input(), self.tokPos) as int;
             let mut octalmatch = exec(regex_13, slice(get_input(), self.tokPos as int, self.tokPos as int + 3)); 
-            let mut octal:String = match octalmatch { Some(m) => m[0].clone(), None => "0".to_string() };
-            while octal.len() > 0 && parseInt(octal.as_slice(), 8) > 255{
-octal = slice(octal.as_slice(), 0, -1).to_string();
-}
-            if (octal.as_slice()=="0") {
-octal = "".to_string();
-}
             self.tokPos+= 1;
-            if (octal.len() > 0) {
-{
-                if (self._strict) {
-raise(self.tokPos as int - 2, "Octal literal in self._strict mode");
-}
-                out.push_str(fromCharCode(parseInt(octal.as_slice(), 8) as u32).as_slice());
-                self.tokPos += octal.len() - 1;
-            }
-} else {{
+            if octalmatch.is_some() {{
+                let mut octal:String = octalmatch.unwrap()[0].clone();
+                while octal.len() > 0 && parseInt(octal.as_slice(), 8) > 255 {
+                    octal = slice(octal.as_slice(), 0, -1).to_string();
+                }
+                if (octal.as_slice()=="0") {
+                    out.push('\0');
+                } else {
+                    if (self._strict) {
+                        raise(self.tokPos as int - 2, "Octal literal in self._strict mode");
+                    }
+                    out.push_str(fromCharCode(parseInt(octal.as_slice(), 8) as u32).as_slice());
+                    self.tokPos += octal.len() - 1;
+                }
+            }} else {{
                 match ch{
-110 => {out.push('\n');;
-break;},
-114 => {out.push('\r');;
-break;},
-120 => {out.push_str(fromCharCode(self.readHexChar(2) as u32).as_slice());;
-break;},
-117 => {out.push_str(self.readCodePoint().as_slice());;
-break;},
-85 => {out.push_str(fromCharCode(self.readHexChar(8) as u32).as_slice());;
-break;},
-116 => {out.push('\t');;
-break;},
-98 => {out.push('\u0008');;
-break;},
-118 => {out.push('\u000b');;
-break;},
-102 => {out.push('\u000c');;
-break;},
-48 => {out.push('\u0000');;
-break;},
-13 => {if (charCodeAt(get_input(), self.tokPos)==10) {
-self.tokPos+= 1;
-}},
-10 => {;
-break;},
-_ => {out.push_str(fromCharCode(ch as u32).as_slice());;
-break;}}
+                    110 => {out.push('\n');; },
+                    114 => {out.push('\r');;
+                    break;},
+                    120 => {out.push_str(fromCharCode(self.readHexChar(2) as u32).as_slice());;
+                    break;},
+                    117 => {out.push_str(self.readCodePoint().as_slice());;
+                    break;},
+                    85 => {out.push_str(fromCharCode(self.readHexChar(8) as u32).as_slice());;
+                    break;},
+                    116 => {out.push('\t');;
+                    break;},
+                    98 => {out.push('\u0008');;
+                    break;},
+                    118 => {out.push('\u000b');;
+                    break;},
+                    102 => {out.push('\u000c');;
+                    break;},
+                    48 => {out.push('\u0000');;
+                    break;},
+                    13 => {
+                        if (charCodeAt(get_input(), self.tokPos)==10) {
+                            self.tokPos+= 1;
+                        }
+                    },
+                    10 => { },
+                    _ => {out.push_str(fromCharCode(ch as u32).as_slice());;
+                    break;}
+                }
             }}
-        }
-} else {{
+        }} else {{
             self.tokPos+= 1;
-            if (test(newline, fromCharCode(ch as u32).as_slice())) {
-{
-                if (self.inTemplate) {
-{
-                    if (ch==13 && charCodeAt(get_input(), self.tokPos)==10) {
-{
+            if (test(newline, fromCharCode(ch as u32).as_slice())) {{
+                if (self.inTemplate) {{
+                    if (ch==13 && charCodeAt(get_input(), self.tokPos)==10) {{
                         self.tokPos+= 1;
                         ch = 10;
-                    }
-}
-                    
-                }
-} else {{
+                    }}
+                }} else {{
                     raise(self.tokStart, "Unterminated string constant");
                 }}
-            }
-}
+            }}
             out.push_str(fromCharCode(ch as u32).as_slice());
         }}
-    };
+    }}
+    return 0;
 }
-return 0;
-}
+
 fn readHexChar(&mut self, len:int) -> int {
     let mut n:f64 = self.readInt(16, len); 
     if (isNaN(n)) {
@@ -1818,12 +1807,14 @@ fn parseExprAtom(&mut self) -> Box<Node> {
         return id;},
         _num |
         _string |
-        _regexp => {let node:&mut Box<Node> = &mut self.startNode(); ;
-        node.value = self.tokVal.clone().unwrap();;
-        node.raw = slice(get_input(), self.tokStart, self.tokEnd).to_string();;
-        self.next();;
-        self.enterNode(node, "Literal");;
-        return self.finishNode(node.clone());},
+        _regexp => {
+            let node:&mut Box<Node> = &mut self.startNode();
+            node.value = self.tokVal.clone().unwrap();
+            node.raw = slice(get_input(), self.tokStart, self.tokEnd).to_string();
+            self.next();
+            self.enterNode(node, "Literal");
+            return self.finishNode(node.clone());
+        },
         _null |
         _true |
         _false => {

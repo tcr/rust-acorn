@@ -119,6 +119,18 @@ pub struct FunctionDeclarationNode {
 }
 
 #[deriving(Encodable)]
+pub struct FunctionExpressionNode {
+    pub _type:&'static str,
+    pub start:uint,
+    pub end:uint,
+
+    pub id:Option<Box<Node>>,
+    pub params:Vec<Box<Node>>,
+    pub body:Option<Box<Node>>,
+    pub expression:bool,
+}
+
+#[deriving(Encodable)]
 pub struct ExpressionStatementNode {
     pub _type:&'static str,
     pub start:uint,
@@ -155,6 +167,17 @@ pub struct MemberExpressionNode {
     pub object:Option<Box<Node>>,
     pub property:Option<Box<Node>>,
     pub computed:bool,
+}
+
+#[deriving(Encodable)]
+pub struct ConditionalExpressionNode {
+    pub _type:&'static str,
+    pub start:uint,
+    pub end:uint,
+
+    pub test:Option<Box<Node>>,
+    pub consequent:Option<Box<Node>>,
+    pub alternate:Option<Box<Node>>,
 }
 
 #[deriving(Encodable)]
@@ -218,6 +241,29 @@ pub struct LiteralNumberNode {
 }
 
 #[deriving(Encodable)]
+pub struct LiteralRegexpNodeValue;
+
+#[deriving(Encodable)]
+pub struct LiteralRegexpNode {
+    pub _type:&'static str,
+    pub start:uint,
+    pub end:uint,
+    
+    pub value:LiteralRegexpNodeValue,
+    pub raw:String,
+}
+
+#[deriving(Encodable)]
+pub struct LiteralNullNode {
+    pub _type:&'static str,
+    pub start:uint,
+    pub end:uint,
+    
+    pub value:Option<bool>,
+    pub raw:String,
+}
+
+#[deriving(Encodable)]
 pub struct VariableDeclarationNode {
     pub _type:&'static str,
     pub start:uint,
@@ -259,6 +305,29 @@ impl <S: Encoder<E>, E> Encodable<S, E> for Node {
                     params: self.params.clone(),
                     body: self.body.clone(),
                     expression: self.isExpression,
+                }.encode(encoder)
+            },
+            "FunctionExpression" => {
+                FunctionExpressionNode {
+                    _type: "FunctionExpression",
+                    start: self.start,
+                    end: self.end,
+
+                    id: self.id.clone(),
+                    params: self.params.clone(),
+                    body: self.body.clone(),
+                    expression: self.isExpression,
+                }.encode(encoder)
+            },
+            "ConditionalExpression" => {
+                ConditionalExpressionNode {
+                    _type: "ConditionalExpression",
+                    start: self.start,
+                    end: self.end,
+
+                    test: self.test.clone(),
+                    consequent: self.consequent.clone(),
+                    alternate: self.alternate.clone(),
                 }.encode(encoder)
             },
             "VariableDeclaration" => {
@@ -360,6 +429,14 @@ impl <S: Encoder<E>, E> Encodable<S, E> for Node {
                         value: s.clone(),
                         raw: self.raw.clone(),
                     }.encode(encoder),
+                    JS_REGEXP(s) => LiteralRegexpNode {
+                        _type: "Literal",
+                        start: self.start,
+                        end: self.end,
+
+                        value: LiteralRegexpNodeValue,
+                        raw: self.raw.clone(),
+                    }.encode(encoder),
                     JS_DOUBLE(s) => LiteralNumberNode {
                         _type: "Literal",
                         start: self.start,
@@ -376,7 +453,14 @@ impl <S: Encoder<E>, E> Encodable<S, E> for Node {
                         value: s,
                         raw: self.raw.clone(),
                     }.encode(encoder),
-                    JS_NULL => encoder.emit_nil(),
+                    JS_NULL => LiteralNullNode {
+                        _type: "Literal",
+                        start: self.start,
+                        end: self.end,
+
+                        value: None,
+                        raw: self.raw.clone(),
+                    }.encode(encoder),
                     _ => {
                         writeln!(io::stderr(), "UNSUPPORTED {}", self.value);
                         encoder.emit_nil()

@@ -367,6 +367,7 @@ fn new_node (start:uint) -> Box<Node> {
         tail:false,
         shorthand:false,
         superClass: None,
+        isExpression: false,
     }
 }
 
@@ -1145,7 +1146,7 @@ node.range[1] = self.lastEnd;
 }
 
 fn eat(&mut self, _type :keyword_t) -> bool {
-    writeln!(io::stderr(), "-> eat {} expecting {}", self.tokType.unwrap(), _type);
+    write!(io::stderr(), "-> eat {} expecting {}", self.tokType.unwrap(), _type);
     if (self.tokType.unwrap() == _type) {
         self.next();
         return true;
@@ -1157,30 +1158,30 @@ fn eat(&mut self, _type :keyword_t) -> bool {
 fn canInsertSemicolon(&mut self) -> bool {
     return !self.options.strictSemicolons && (self.tokType.unwrap() ==_eof || self.tokType.unwrap()==_braceR || test(newline, slice(get_input(), self.lastEnd, self.tokStart)));
 }
+
 fn semicolon(&mut self) -> int {
     if (!self.eat(_semi) && !self.canInsertSemicolon()) {
-self.expected(None);
+        self.expected(None);
+    }
+    return 0;
 }
-return 0;
-}
+
 fn expect(&mut self, _type :keyword_t) -> int {
     if !self.eat(_type) { self.expected(None); }
     return 0;
 }
+
 fn expected(&mut self, pos:Option<int>) -> int {
     raise(match pos { Some(p) => p, None => self.tokStart }, "Unexpected token");
     return 0;
 }
 
-
 fn checkSpreadAssign<'a>(&'a mut self, node:&'a mut Box<Node>) -> int {
     if (node._type.as_slice()!="Identifier" && node._type.as_slice()!="ArrayPattern") {
-self.expected(Some(node.start as int));
+        self.expected(Some(node.start as int));
+    }
+    return 0;
 }
-return 0;
-}
-
-
 
 fn parseTopLevel(&mut self, mut program:Option<Box<Node>>) -> Box<Node> {
     self.lastEnd = self.tokPos as int;
@@ -1196,10 +1197,9 @@ fn parseTopLevel(&mut self, mut program:Option<Box<Node>>) -> Box<Node> {
     let mut node:Box<Node> = if program.is_none() { self.startNode() } else { program.unwrap() };
     let mut first:bool = true; 
     if !hasprogram {
-node.bodylist = vec![];
-}
+        node.bodylist = vec![];
+    }
     while self.tokType.unwrap() !=_eof{
-{
         let mut stmt:Box<Node> = self.parseStatement(); 
         if (first && isUseStrict(&mut stmt)) {
             self.setStrict(true);
@@ -1207,8 +1207,7 @@ node.bodylist = vec![];
         node.bodylist.push(stmt);
         first = false;
     }
-}
-writeln!(io::stderr(), "ho");
+    writeln!(io::stderr(), "ho");
     self.enterNode(&mut node, "Program");
     writeln!(io::stderr(), "done");
     return self.finishNode(node);
@@ -1261,9 +1260,10 @@ fn parseBreakContinueStatement<'a>(&'a mut self, node:&'a mut Box<Node>, keyword
     let mut isBreak:bool = keyword == "break"; 
     self.next();
     if (self.eat(_semi) || self.canInsertSemicolon()) {
-node.label = None;
-} else {if (self.tokType.unwrap()!=_name) {
-self.expected(None);
+        node.label = None;
+    } else {
+        if (self.tokType.unwrap()!=_name) {
+            self.expected(None);
 } else {{
         node.label = Some(self.parseIdent(false));
         self.semicolon();
@@ -2143,6 +2143,7 @@ fn parseFunctionBody<'a>(&'a mut self, node:&'a mut Box<Node>, allowExpression:b
     if (isExpression) {
 {
         node.body = Some(self.parseExpression(true, false));
+        node.isExpression = true;
     }
 } else {{
         let mut oldInFunc:bool = self.inFunction;  let mut oldInGen:bool = self.inGenerator;
@@ -2151,6 +2152,7 @@ fn parseFunctionBody<'a>(&'a mut self, node:&'a mut Box<Node>, allowExpression:b
         self.inGenerator = node.generator;
         self.labels = vec![];
         node.body = Some(self.parseBlock(true));
+        node.isExpression = false;
         self.inFunction = oldInFunc;
         self.inGenerator = oldInGen;
         self.labels = oldLabels;

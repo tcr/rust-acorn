@@ -93,6 +93,7 @@ pub struct Node {
     pub method:bool,
     pub tail:bool,
     pub shorthand:bool,
+    pub isExpression:bool,
     pub superClass:Option<Box<Node>>,
 }
 
@@ -103,6 +104,18 @@ pub struct ProgramNode {
     pub end:uint,
 
     pub body:Vec<Box<Node>>,
+}
+
+#[deriving(Encodable)]
+pub struct FunctionDeclarationNode {
+    pub _type:&'static str,
+    pub start:uint,
+    pub end:uint,
+
+    pub id:Option<Box<Node>>,
+    pub params:Vec<Box<Node>>,
+    pub body:Option<Box<Node>>,
+    pub expression:bool,
 }
 
 #[deriving(Encodable)]
@@ -214,6 +227,18 @@ impl <S: Encoder<E>, E> Encodable<S, E> for Node {
                     end: self.end,
 
                     body: self.bodylist.clone()
+                }.encode(encoder)
+            },
+            "FunctionDeclaration" => {
+                FunctionDeclarationNode {
+                    _type: "FunctionDeclaration",
+                    start: self.start,
+                    end: self.end,
+
+                    id: self.id.clone(),
+                    params: self.params.clone(),
+                    body: self.body.clone(),
+                    expression: self.isExpression,
                 }.encode(encoder)
             },
             "BlockStatement" => {
@@ -444,6 +469,7 @@ lazy_static! {
         method:false,
         tail:false,
         shorthand:false,
+        isExpression: false,
         superClass: None,
     };
 }

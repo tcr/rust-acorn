@@ -1,1 +1,3 @@
-console.log('hello world!')
+while (true) {
+	console.log(true);
+}

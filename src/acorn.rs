@@ -1114,7 +1114,11 @@ fn startNode(&mut self) -> Box<Node> {
 }
 
 fn startNodeFrom(&mut self, other:&Box<Node>) -> Box<Node> {
-    let mut node:Box<Node> = new_node(other.start);    
+    let mut node:Box<Node> = new_node(other.start);   
+    node.loc = Some(SourceLocation {
+        start: self.tokStartLoc.clone(),
+        end: self.tokStartLoc.clone(),
+    }); 
     if (self.options.ranges) {
         node.range = vec![other.range[0], 0];
     }

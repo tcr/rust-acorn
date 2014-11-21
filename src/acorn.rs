@@ -1,8 +1,11 @@
 use types::*;
+use types::ATOM_VALUE::*;
+use types::js_any_type::*;
 use std::mem;
 use std::io;
 use std;
 use std::f64;
+use std::num;
 use std::fmt;
 use serialize::{Encodable, Encoder};
 use serialize::json::ToJson;
@@ -20,7 +23,7 @@ pub fn fromCharCode (i:u32) -> String {
 }
 
 pub fn fromCharCode2 (i:u32, j:u32) -> String {
-    return String::from_chars([std::char::from_u32(i).unwrap(), std::char::from_u32(j).unwrap()]);
+    return String::from_chars(&[std::char::from_u32(i).unwrap(), std::char::from_u32(j).unwrap()]);
 }
 
 pub fn push (mut nodes:Vec<Box<Node>>, node:Box<Node>) {
@@ -36,7 +39,7 @@ pub fn convert_to_Node_C (arg:&mut Box<Node>) -> &'static str {
 }
 
 pub fn jsparse_callback_close (arg:&str) {
-    writeln!(io::stderr(), "close: {}", arg);
+    
 }
 
 pub fn ISNULL(arg:&str) -> bool {
@@ -44,7 +47,7 @@ pub fn ISNULL(arg:&str) -> bool {
 }
 
 pub fn jsparse_callback_open (arg:&str) {
-    writeln!(io::stderr(), "open: {}", arg);
+    
 }
 
 pub fn raise (start:int, message:&str){
@@ -87,7 +90,7 @@ pub fn ISNOTNULL (arg:int) -> bool {
 }
 
 pub fn isNaN (arg:f64) -> bool {
-    return arg.is_nan();
+    return num::Float::is_nan(arg);
 }
 
 pub fn parseInt (arg:&str, base:int) -> i32 {
@@ -107,7 +110,7 @@ pub fn checkLVal(arg:&Box<Node>) {
 }
 
 pub fn parseTemplate() -> Box<Node> {
-    return nullptr.clone()
+    return null_node();
 }
 
 pub struct thisval {
@@ -179,11 +182,16 @@ pub struct AcornParser {
     containsEsc:bool,
 }
 
-lazy_static! {
-    static ref empty:Vec<Box<Node>> = vec![]; 
+fn get_empty() -> Vec<Box<Node>> {
+    return vec![];
+}
 
-    static ref loopLabel:label_t = label_t {kind: "loop".to_string(), name: "".to_string()};
-    static ref switchLabel:label_t = label_t {kind: "switch".to_string(), name: "".to_string()}; 
+fn get_loop_label() -> label_t {
+    return label_t {kind: "loop".to_string(), name: "".to_string()};
+}
+
+fn get_switch_label() -> label_t {
+    return label_t {kind: "switch".to_string(), name: "".to_string()}; 
 }
 
 
@@ -304,6 +312,9 @@ fn get_input() -> &'static str {
     }
 }
 
+fn null_node () -> Box<Node> {
+    return new_node(0);
+}
 
 fn new_node (start:uint) -> Box<Node> {
     box Node {
@@ -1144,7 +1155,7 @@ fn finishNode(&mut self, mut node:Box<Node>) -> Box<Node> {
 }
 
 fn eat(&mut self, _type :keyword_t) -> bool {
-    write!(io::stderr(), "-> eat {} expecting {}", self.tokType.unwrap(), _type);
+    
     if (self.tokType.unwrap() == _type) {
         self.next();
         return true;
@@ -1205,9 +1216,9 @@ fn parseTopLevel(&mut self, mut program:Option<Box<Node>>) -> Box<Node> {
         node.bodylist.push(stmt);
         first = false;
     }
-    writeln!(io::stderr(), "ho");
+    
     self.enterNode(&mut node, "Program");
-    writeln!(io::stderr(), "done");
+    
     // println!("~~~~~arseTopLvl {}", self.tokCurLine);
     return self.finishNode(node);
 }
@@ -1296,7 +1307,7 @@ fn parseDebuggerStatement<'a>(&'a mut self, node:&'a mut Box<Node>) -> Box<Node>
 }
 fn parseDoStatement<'a>(&'a mut self, node:&'a mut Box<Node>) -> Box<Node> {
 self.    next();
-    self.labels.push((*loopLabel).clone());
+    self.labels.push(get_loop_label());
     node.body = Some(self.parseStatement());
     self.labels.pop();
     self.expect(_while);
@@ -1307,10 +1318,10 @@ self.    next();
 }
 fn parseForStatement<'a>(&'a mut self, node:&'a mut Box<Node>) -> Box<Node> {
     self.next();
-    self.labels.push((*loopLabel).clone());
+    self.labels.push(get_loop_label());
     self.expect(_parenL);
     if (self.tokType.unwrap()==_semi) {
-return self.parseFor(node, (*nullptr).clone());
+return self.parseFor(node, null_node());
 }
     if (self.tokType.unwrap()==_var || self.tokType.unwrap()==_let) {
 {
@@ -1387,7 +1398,7 @@ fn parseSwitchStatement<'a>(&'a mut self, node:&'a mut Box<Node>) -> Box<Node> {
     node.discriminant = Some(self.parseParenExpression());
     node.cases = vec![];
     self.expect(_braceL);
-    self.labels.push((*switchLabel).clone());
+    self.labels.push(get_switch_label());
     let mut cur:Option<Box<Node>> = None;  let mut sawDefault:bool = false;
     while self.tokType.unwrap() != _braceR {
         if (self.tokType.unwrap()==_case || self.tokType.unwrap()==_default) {
@@ -1464,7 +1475,7 @@ raise(param.start as int, ("Binding ".to_string() + param.name + " in self._stri
         node.handler = Some(self.finishNode(clause));
     }
 }
-    node.guardedHandlers = (*empty).clone();
+    node.guardedHandlers = get_empty();
     node.finalizer = if self.eat(_finally) { Some(self.parseBlock(false)) } else { None };
     if (node.handler.is_none() && node.finalizer.is_none()) {
 raise(node.start as int, "Missing catch or finally clause");
@@ -1483,7 +1494,7 @@ fn parseWhileStatement<'a>(&'a mut self, node:&'a mut Box<Node>) -> Box<Node> {
     self.next();
      jsparse_callback_open("while-test"); 
     node.test = Some(self.parseParenExpression());
-    self.labels.push((*loopLabel).clone());
+    self.labels.push(get_loop_label());
      jsparse_callback_open("while-body"); 
     node.body = Some(self.parseStatement());
     self.labels.pop();
@@ -1840,8 +1851,8 @@ fn parseExprAtom(&mut self) -> Box<Node> {
         _parenL => {
             let mut tokStartLoc1:Position = self.tokStartLoc; 
             let mut tokStart1:int = self.tokStart; 
-            let mut val:Box<Node> = (*nullptr).clone();
-            let mut exprList:Vec<Box<Node>> = Vec::new(); ;
+            let mut val:Box<Node> = null_node();
+            let mut exprList:Vec<Box<Node>> = Vec::new();
         self.next();;
         if (self.options.ecmaVersion >= 6 && self.tokType.unwrap()==_for) {
         {
@@ -1866,7 +1877,7 @@ fn parseExprAtom(&mut self) -> Box<Node> {
                             val = self.parseArrowExpression(node2, exprList);
                         }
         } else {{
-                            if (val == (*nullptr)) {
+                            if (val == null_node()) {
                                 let lastStart = self.lastStart;
         self.expected(Some(lastStart));
         }
@@ -1914,7 +1925,7 @@ fn parseExprAtom(&mut self) -> Box<Node> {
         _ellipsis => {return self.parseSpread();},
         _bquote => {return parseTemplate();},
         _ => {self.expected(None);}}
-    return (*nullptr).clone();
+    return null_node();
 }
 
 fn parseNew(&mut self) -> Box<Node> {
@@ -1926,7 +1937,7 @@ fn parseNew(&mut self) -> Box<Node> {
      jsparse_callback_open("new-args"); 
     if (self.eat(_parenL)) {
 node.arguments = self.parseExprList(_parenR, false, false);
-} else {node.arguments = (*empty).clone();}
+} else {node.arguments = get_empty();}
      jsparse_callback_open("new-close"); 
     self.enterNode(node, "NewExpression");
     return self.finishNode(node.clone());
@@ -2083,7 +2094,7 @@ while i <= lastI{
             node.defaults.push(param.right.clone().unwrap());
         } else {
             toAssignable(param.clone(), i==lastI, true);
-            node.defaults.push((*nullptr).clone());
+            node.defaults.push(null_node());
             if (param._type.as_slice()=="SpreadElement") {
                 params.pop();
                 node.rest = param.argument;
@@ -2246,7 +2257,7 @@ fn parseExprList(&mut self, close:keyword_t, allowTrailingComma:bool, allowEmpty
             first = false;
         }
         if (allowEmpty && self.tokType.unwrap()==_comma) {
-            elts.push((*nullptr).clone());
+            elts.push(null_node());
         } else {
             elts.push(self.parseExpression(true, false));
         }

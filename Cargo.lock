@@ -1,12 +1,4 @@
 [root]
 name = "acorn"
 version = "1.0.0"
-dependencies = [
- "lazy_static 0.1.0 (git+https://github.com/Kimundi/lazy-static.rs.git)",
-]
-
-[[package]]
-name = "lazy_static"
-version = "0.1.0"
-source = "git+https://github.com/Kimundi/lazy-static.rs.git#62976cb611c5396e11315ae64c9c389576240eb7"
 

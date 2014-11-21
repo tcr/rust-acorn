@@ -14,8 +14,6 @@
 #![feature(globs)]
 #![feature(phase)]
 
-#[phase(plugin)]
-extern crate lazy_static;
 extern crate serialize;
 
 use std::str;

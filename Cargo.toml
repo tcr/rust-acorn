@@ -7,7 +7,3 @@ authors = [ "Tim Cameron Ryan <tim@technical.io>" ]
 [[bin]]
 
 name = "acorn"
-
-[dependencies.lazy_static]
-
-git = "https://github.com/Kimundi/lazy-static.rs.git"

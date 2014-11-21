@@ -402,35 +402,35 @@ impl <S: Encoder<E>, E> Encodable<S, E> for Node {
             },
             "Literal" => {
                 match self.value.clone() {
-                    JS_STRING(s) => LiteralStringNode {
+                    js_any_type::JS_STRING(s) => LiteralStringNode {
                         _type: "Literal",
                         loc: self.loc.clone(),
 
                         value: s.clone(),
                         raw: self.raw.clone(),
                     }.encode(encoder),
-                    JS_REGEXP(s) => LiteralRegexpNode {
+                    js_any_type::JS_REGEXP(s) => LiteralRegexpNode {
                         _type: "Literal",
                         loc: self.loc.clone(),
 
                         value: DummyNode,
                         raw: self.raw.clone(),
                     }.encode(encoder),
-                    JS_DOUBLE(s) => LiteralNumberNode {
+                    js_any_type::JS_DOUBLE(s) => LiteralNumberNode {
                         _type: "Literal",
                         loc: self.loc.clone(),
 
                         value: s,
                         raw: self.raw.clone(),
                     }.encode(encoder),
-                    JS_BOOLEAN(s) => LiteralBooleanNode {
+                    js_any_type::JS_BOOLEAN(s) => LiteralBooleanNode {
                         _type: "Literal",
                         loc: self.loc.clone(),
 
                         value: s,
                         raw: self.raw.clone(),
                     }.encode(encoder),
-                    JS_NULL => LiteralNullNode {
+                    js_any_type::JS_NULL => LiteralNullNode {
                         _type: "Literal",
                         loc: self.loc.clone(),
 
@@ -438,13 +438,13 @@ impl <S: Encoder<E>, E> Encodable<S, E> for Node {
                         raw: self.raw.clone(),
                     }.encode(encoder),
                     _ => {
-                        writeln!(io::stderr(), "UNSUPPORTED {}", self.value);
+                        
                         encoder.emit_nil()
                     },
                 }
             },
             _ => {
-                writeln!(io::stderr(), " TODO: {}", self._type);
+                
                 encoder.emit_struct("empty", 0, |encoder| {
                   Ok(())
                 })
@@ -474,12 +474,6 @@ pub struct keyword_t {
     pub postfix:bool,
     pub prefix:bool,
     pub _type:&'static str,
-}
-
-impl fmt::Show for keyword_t {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        writeln!(f, "[keyword {}, '{}']", self._id, self._type)
-    }
 }
 
 impl PartialEq for keyword_t {
@@ -513,78 +507,6 @@ pub struct SourceLocation {
     pub end:Position,
 }
 
-
-lazy_static! {
-    pub static ref nullptr:Box<Node> = box Node {
-        _type: "".to_string(),
-        start: 1,
-        end: -1,
-        loc: None,
-
-        sourceFile: "".to_string(),
-        range: vec![],
-        body: None,
-        bodylist: vec![],
-        label: None,
-        test: None,
-        declaration: None,
-        source: None,
-        specifiers: vec![],
-        consequent: None,
-        consequents: vec![],
-        defaults: vec![],
-        alternate: None,
-        argument: None,
-        discriminant: None,
-        cases: vec![],
-        block:None,
-        handler:None,
-        guardedHandlers: vec![],
-        finalizer:None,
-        object:None,
-        expression:None,
-        init:None,
-        update:None,
-        left:None,
-        right:None,
-        declarations: vec![],
-        kind: "".to_string(),
-        expressions: vec![],
-        prefix:false,
-        property:None,
-        computed:false,
-        callee:None,
-        arguments: vec![],
-        key:None,
-        value: JS_NULL,
-        raw:"".to_string(),
-        elements: vec![],
-        properties: vec![],
-        id:None,
-        param:None,
-        params: vec![],
-        blocks: vec![],
-        rest:None,
-        guard:None,
-        name:"".to_string(),
-        generator:false,
-        of:false,
-        quasi: None,
-        quasis: vec![],
-        tag: None,
-        delegate:false,
-        _default:false,
-        _static:false,
-        _operator:"".to_string(),
-        filter: None,
-        method:false,
-        tail:false,
-        shorthand:false,
-        isExpression: false,
-        superClass: None,
-    };
-}
-
 #[deriving(Clone, Show, Encodable)]
 pub enum js_any_type {
     JS_NULL,
@@ -598,7 +520,7 @@ pub enum js_any_type {
 impl js_any_type {
     pub fn to_string(&self) -> String {
         match (*self) {
-            JS_STRING(ref s) => s.clone(),
+            js_any_type::JS_STRING(ref s) => s.clone(),
             _ => "".to_string()
         }
     }
